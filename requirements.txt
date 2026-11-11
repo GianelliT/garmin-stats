@@ -1,0 +1,5 @@
+flask>=3.0
+pandas>=2.2
+fitdecode>=0.10
+garmin-connect-personal-api-python>=1.0.0   # client officiel Garmin (module garmin_personal_api)
+garminconnect>=0.3                          # VO2max / prédictions (non officiel, facultatif)

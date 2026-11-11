@@ -1,0 +1,33 @@
+# --- Données personnelles (NE JAMAIS COMMITER) ---
+garmin.db
+garmin.db-*
+*.db
+*.sqlite
+*.sqlite3
+fit_files/
+*.fit
+*.zip
+
+# --- Secrets ---
+.env
+*.key
+connect-tokens/
+carto-api-key
+connect-personal-api-key
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# --- OS / éditeurs ---
+.DS_Store
+__MACOSX/
+.idea/
+.vscode/
+
+# Outils IA
+.claude/
+.agents/
