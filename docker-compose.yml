@@ -1,0 +1,16 @@
+services:
+  garmin-stats:
+    image: ghcr.io/gianellit/garmin-stats:latest
+    # Pour construire l'image en local plutôt que la télécharger :
+    # build: .
+    container_name: garmin-stats
+    restart: unless-stopped
+    ports:
+      # Accessible uniquement depuis cette machine (l'app n'a pas d'authentification)
+      - "127.0.0.1:4999:4999"
+    environment:
+      GARMIN_PERSONAL_API_KEY: ${GARMIN_PERSONAL_API_KEY:-}
+      CARTO_API_KEY: ${CARTO_API_KEY:-}
+    volumes:
+      - ./data:/data                        # garmin.db + fit_files/
+      - ./config:/home/app/.config/garmin   # jetons de connexion (connect_sync.py)

@@ -1,0 +1,18 @@
+.git
+.github
+.venv
+__pycache__
+*.pyc
+.DS_Store
+.claude
+.agents
+
+# Données et secrets : jamais dans l'image
+data/
+config/
+garmin.db*
+*.db
+fit_files/
+*.fit
+*.zip
+.env

@@ -42,6 +42,8 @@ Garmin Connect ──► sync.py ───────────┐   activit�
 | `api.py`, `probe_*.py` | Scripts d'exploration de l'API Garmin |
 | `dashboard.py` | Ancienne version Streamlit (optionnelle) |
 | `static/` | Interface web (une page par fichier dans `static/js/pages/`) |
+| `Dockerfile`, `docker-compose.yml` | Image et déploiement (gunicorn, 1 worker) |
+| `.github/workflows/docker.yml` | Construction et publication de l'image sur GHCR |
 
 ## Prérequis
 
@@ -49,7 +51,41 @@ Garmin Connect ──► sync.py ───────────┐   activit�
 - Un compte Garmin Connect
 - Une **clé Personal API** Garmin (gratuite, voir ci-dessous)
 
-## Installation
+## Démarrage rapide avec Docker
+
+Une image multi-architecture (amd64 / arm64) est publiée sur GitHub Container Registry : il suffit de Docker, sans installer Python.
+
+```bash
+mkdir garmin-stats && cd garmin-stats
+curl -O https://raw.githubusercontent.com/GianelliT/garmin-stats/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/GianelliT/garmin-stats/main/.env.example
+cp .env.example .env             # puis renseigner GARMIN_PERSONAL_API_KEY (voir « Configuration »)
+docker compose up -d
+```
+
+Ouvrez <http://127.0.0.1:4999>. Première synchronisation complète :
+
+```bash
+docker compose exec garmin-stats python /app/sync.py --full
+docker compose exec garmin-stats python /app/download_tracks.py
+docker compose exec garmin-stats python /app/geocode.py
+docker compose exec -it garmin-stats python /app/connect_sync.py --login   # facultatif : VO₂max et prédictions
+```
+
+Ensuite, le bouton *Synchroniser* de l'interface suffit.
+
+| Besoin | Commande |
+|---|---|
+| Mettre à jour l'image | `docker compose pull && docker compose up -d` |
+| Voir les journaux | `docker compose logs -f` |
+| Arrêter | `docker compose down` (les données sont conservées) |
+| Construire en local | décommenter `build: .` dans `docker-compose.yml`, puis `docker compose up -d --build` |
+
+Les données sont écrites à côté du fichier compose : `./data` (`garmin.db` et `fit_files/`) et `./config` (jetons de connexion). Pour réutiliser une base existante, copiez `garmin.db` et `fit_files/` dans `./data`. Sous Linux, ces dossiers doivent appartenir à l'utilisateur 1000 (`sudo chown -R 1000:1000 data config`).
+
+Le port n'est publié que sur `127.0.0.1` : l'application n'a pas d'authentification, ne l'exposez pas sur un réseau sans protection.
+
+## Installation manuelle (sans Docker)
 
 ```bash
 git clone https://github.com/GianelliT/garmin-stats.git
@@ -128,6 +164,7 @@ Tout est stocké localement et **ignoré par Git** (voir `.gitignore`) :
 | `garmin.db` | Base SQLite : `activities`, `daily`, `sleep`, `tracks`, `places`, `garmin_fitness`, `activity_meta`, `activity_tags`, `activity_subs`, `tag_meta`, `sync_log` |
 | `fit_files/` | Fichiers `.fit` bruts (**contiennent vos positions GPS précises**) |
 | `~/.config/garmin/` | Clé API, jetons de connexion, clé CARTO (hors du dépôt) |
+| `data/`, `config/`, `.env` | Équivalents avec Docker (ignorés par Git et exclus de l'image) |
 
 À savoir :
 
