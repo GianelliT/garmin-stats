@@ -4,9 +4,11 @@ export const css = n => getComputedStyle(document.documentElement).getPropertyVa
 /** Échappe un texte saisi par l'utilisateur (nom, note, tag) avant de l'insérer dans du HTML. */
 export const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-/** Classement d'une course : catégorie (Course, Footing, Séance) et, pour Course et Séance, une précision (10 km, 10x400…). */
-export const CATS = { course: "Course", footing: "Footing", seance: "Séance" };
-export const WITH_SUB = ["course", "seance"];
+/** Classement d'une course : catégorie (Course, Footing, Séance, Trail) et, sauf pour Footing, une précision (10 km, 10x400, UTMB…). */
+export const CATS = { course: "Course", footing: "Footing", seance: "Séance", trail: "Trail" };
+export const WITH_SUB = ["course", "seance", "trail"];
+/** Exemple de précision affiché dans le champ de saisie, selon la catégorie. */
+export const SUB_HINT = { course: "ex. 10 km, semi", seance: "ex. 10x400, piste", trail: "ex. 42 km, UTMB" };
 export const serieHref = (cat, sub) => `#/serie/${cat}${sub ? "/" + encodeURIComponent(sub) : ""}`;
 /** Pastille de catégorie (avec sa couleur), suivie de la précision éventuelle. */
 export const catPills = (cat, subs, cls = "sm") => !cat ? "" : `<span class="chip cat ${cls}" style="--c:var(--cat-${cat})"><i></i>${CATS[cat]}</span>${[].concat(subs || []).map(s => `<span class="chip ${cls}">${esc(s)}</span>`).join("")}`;

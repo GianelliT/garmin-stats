@@ -123,9 +123,9 @@ def index():
     return send_from_directory("static", "index.html")
 
 
-CATEGORIES = {"course": "Course", "footing": "Footing", "seance": "Séance"}
-WITH_SUB = ("course", "seance")    # le footing n'a pas de précision ; une course ou une séance en a une (10 km, 10x400…)
-MODES = {"footing": "average", "course": "splits", "seance": "laps"}   # comment comparer : moyenne seule / km par km / tour par tour
+CATEGORIES = {"course": "Course", "footing": "Footing", "seance": "Séance", "trail": "Trail"}
+WITH_SUB = ("course", "seance", "trail")    # le footing n'a pas de précision ; une course, une séance ou un trail en a une (10 km, 10x400, UTMB…)
+MODES = {"footing": "average", "course": "splits", "seance": "laps", "trail": "splits"}   # comment comparer : moyenne seule / km par km / tour par tour
 
 
 def clean_tag(t):
@@ -141,10 +141,10 @@ def clean_sub(t):
 
 
 def suggest_category(tag):
-    """Catégorie évidente d'un ancien tag libre (« footing », « 10x400 », « semi-marathon »), sinon None."""
+    """Catégorie évidente d'un ancien tag libre (« footing », « trail », « 10x400 », « semi-marathon »), sinon None."""
     t = clean_tag(tag)
-    if t == "footing":
-        return "footing"
+    if t in ("footing", "trail"):
+        return t
     if re.match(r"^\d+x\d+", t):
         return "seance"
     if re.match(r"^(\d+(?:[.,]\d+)?\s?k(?:m)?|semi([- ]marathon)?|marathon)$", t):
@@ -177,12 +177,12 @@ def apply_category(c, ids, category, subs):
 def migrate_legacy(c):
     """Au démarrage : les anciens tags libres dont le sens est sans ambiguïté deviennent catégorie + précision. Le reste est
     proposé dans « À classer » (page Séries). Rien n'est supprimé."""
-    prio = {"seance": 0, "course": 1, "footing": 2}
+    prio = {"seance": 0, "trail": 1, "course": 2, "footing": 3}
     rows = c.execute("SELECT g.tag, g.activity_id FROM activity_tags g LEFT JOIN activity_meta m ON m.activity_id = g.activity_id "
                      "WHERE m.category IS NULL").fetchall()
     for tag, aid in sorted(((t, i) for t, i in rows if suggest_category(t)), key=lambda r: prio[suggest_category(r[0])]):
         cat = suggest_category(tag)
-        apply_category(c, [aid], cat, [tag])
+        apply_category(c, [aid], cat, [] if clean_tag(tag) == cat else [tag])     # le tag « trail » devient la catégorie, pas une précision
     keep_secondary_tags(c)
 
 
@@ -213,7 +213,7 @@ def meta_of(aid):
 @app.patch("/api/activity/<int:aid>/meta")
 def set_meta(aid):
     """Renomme, annote ou classe une activité. Champs facultatifs : name (vide = nom Garmin), note, category
-    (course / footing / seance / vide), subtags (liste de précisions : 10 km, 10x400, piste…)."""
+    (course / footing / seance / trail / vide), subtags (liste de précisions : 10 km, 10x400, piste…)."""
     body = request.get_json(silent=True) or {}
     cur = meta_of(aid)    # 404 si l'activité n'existe pas
     if body.get("category") not in (None, "", *CATEGORIES):
@@ -255,7 +255,7 @@ def reload_activity(aid):
 
 @app.get("/api/series")
 def series_index():
-    """Vue d'ensemble : les 3 catégories avec leurs précisions, et ce qu'il reste à classer (anciens tags, courses sans catégorie)."""
+    """Vue d'ensemble : les catégories avec leurs précisions, et ce qu'il reste à classer (anciens tags, courses sans catégorie)."""
     cats = {k: {"key": k, "label": v, "count": 0, "last": "", "nosub": 0, "subs": {}} for k, v in CATEGORIES.items()}
     subs_of = subs_by_activity()
     for r in q("SELECT m.activity_id AS id, m.category, a.date FROM activity_meta m JOIN activities a ON a.activity_id = m.activity_id WHERE m.category IS NOT NULL"):
@@ -287,7 +287,7 @@ def series_index():
 @app.get("/api/serie/<category>/<path:sub>")
 def serie(category, sub=None):
     """Séances d'une catégorie (et d'une précision), de la plus ancienne à la plus récente, avec de quoi les comparer :
-    séance -> tours + tours d'effort détectés ; course -> kilomètres ; footing -> moyenne seule."""
+    séance -> tours + tours d'effort détectés ; course et trail -> kilomètres ; footing -> moyenne seule."""
     if category not in CATEGORIES:
         abort(404)
     sub = clean_sub(sub) if sub else None
@@ -422,4 +422,4 @@ def stat(name):
 
 init_db()
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=4999, use_reloader=True)   # redémarre seul quand un fichier .py change
+    app.run(host="0.0.0.0", port=4999, use_reloader=True)   # redémarre seul quand un fichier .py change

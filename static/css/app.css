@@ -11,7 +11,7 @@
   --r0:#38bdf8; --r1:#a78bfa; --r2:#f43f5e;           /* rampe lent → rapide */
   --sp-run:var(--ac); --sp-bike:#0d9488; --sp-swim:#0ea5e9; --sp-walk:#d97706; --sp-strength:#db2777; --sp-other:#8792a5;
   --cmp-c:#0d9488; --cmp-d:#e11d48; --cmp-e:#64748b;   /* séances C, D, E du comparateur (A = accent, B = --cmp-b) */
-  --cat-course:#e11d48; --cat-footing:#0d9488; --cat-seance:#7c3aed;   /* une couleur par catégorie */
+  --cat-course:#e11d48; --cat-footing:#0d9488; --cat-seance:#7c3aed; --cat-trail:#ea580c;   /* une couleur par catégorie */
   --tip:#0f1623; --tip-ink:#f4f6fb;
   --font:"Geist","Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
   --radius:16px; --r-sm:10px; --hero-h:clamp(420px,58vh,560px);
@@ -23,7 +23,7 @@
   --hr:#f87171; --elev:#6f7b90; --good:#34d399; --warn:#fbbf24; --bad:#fb7185;
   --sp-bike:#2dd4bf; --sp-swim:#38bdf8; --sp-walk:#fbbf24; --sp-strength:#f472b6;
   --cmp-c:#2dd4bf; --cmp-d:#fb7185; --cmp-e:#94a3b8;
-  --cat-course:#fb7185; --cat-footing:#2dd4bf; --cat-seance:#a78bfa;
+  --cat-course:#fb7185; --cat-footing:#2dd4bf; --cat-seance:#a78bfa; --cat-trail:#fb923c;
   --tip:#eceff5; --tip-ink:#0f1623;
 }
 .leaflet-tile{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.88)}}
@@ -386,7 +386,7 @@ input[type=checkbox]{width:16px;height:16px;min-width:0;padding:0;accent-color:v
 .dupes li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px}
 .dupes small{color:var(--ink-3)}
 
-/* ───────── Catégories (course / footing / séance) ───────── */
+/* ───────── Catégories (course / footing / séance / trail) ───────── */
 .chip.cat{background:color-mix(in srgb,var(--c) 15%,transparent);color:var(--c)}
 .chip.cat>i,.chip.cat a>i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c);flex:none}
 .chip.cat>i{margin:0 6px 0 10px} .chip.cat.sm>i{margin:0 5px 0 8px}
@@ -396,7 +396,9 @@ input[type=checkbox]{width:16px;height:16px;min-width:0;padding:0;accent-color:v
 .pick .seg button{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 12px;font-size:12.5px}
 .pick .seg button>i{width:8px;height:8px;border-radius:50%;background:var(--c)}
 .pick .taginput{width:190px}
-.catcard{gap:0;padding:20px} .catcard .card-h{margin-bottom:12px;min-height:0}
+.catcard{gap:0;padding:20px;grid-column:span 3} .catcard .card-h{margin-bottom:12px;min-height:0}
+@media(max-width:1279px){.catcard{grid-column:span 6}}   /* 4 catégories : 4 de front, puis 2 × 2, puis une colonne */
+@media(max-width:700px){.catcard{grid-column:1/-1}}
 .catcard h3 a{display:inline-flex;align-items:center;gap:9px;font-size:17px}
 .catcard h3 .dot{width:10px;height:10px;border-radius:50%;background:var(--c);margin:0}
 .sublist{display:flex;flex-direction:column;max-height:420px;overflow:auto;margin:0 -8px}

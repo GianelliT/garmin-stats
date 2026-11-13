@@ -1,6 +1,6 @@
 import { api } from "../api.js";
 import { alpha, axis, mk } from "../charts.js";
-import { CATS, WITH_SUB, css, dateFr, dateShort, esc, fr, isSpeed, mmss, serieHref } from "../format.js";
+import { CATS, SUB_HINT, WITH_SUB, css, dateFr, dateShort, esc, fr, isSpeed, mmss, serieHref } from "../format.js";
 import { presetFilter, store } from "../filters.js";
 
 const MAX = 5;   // séances comparables d'un coup
@@ -12,10 +12,10 @@ const PEN = '<svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3
 const BIN = '<svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>';
 const plural = (n, w) => `${n} ${w}${n > 1 ? "s" : ""}`;
 
-// ───────── Vue d'ensemble : les 3 catégories, leurs précisions, et ce qu'il reste à classer ─────────
+// ───────── Vue d'ensemble : les 4 catégories, leurs précisions, et ce qu'il reste à classer ─────────
 async function index(el) {
   if (!["run", "all"].includes(store.family)) {
-    el.innerHTML = `<header class="page"><div><h1>Séries</h1></div></header><section class="card"><div class="empty">Les séries (course, footing, séance) concernent la course à pied.<br>Choisissez « Course » en haut de page.</div></section>`;
+    el.innerHTML = `<header class="page"><div><h1>Séries</h1></div></header><section class="card"><div class="empty">Les séries (course, footing, séance, trail) concernent la course à pied.<br>Choisissez « Course » en haut de page.</div></section>`;
     return;
   }
   let d = await api.series();
@@ -45,7 +45,7 @@ async function index(el) {
         const c = b.dataset.c;
         if (!WITH_SUB.includes(c)) return act(() => api.classify(tag, c));          // footing : pas de précision
         const ctl = row.querySelector(".lgctl");
-        ctl.innerHTML = `<div class="lgedit"><span class="chip cat sm" style="--c:var(--cat-${c})"><i></i>${CATS[c]}</span><input maxlength="40" value="${esc(tag)}" aria-label="Précision" placeholder="${c === "seance" ? "ex. 10x400, piste" : "ex. 10 km, trail"}" title="Plusieurs précisions possibles, séparées par des virgules"><button type="button" class="btn pri sm" data-ok>Classer</button><button type="button" class="btn sm ghost" data-cancel>Annuler</button></div>`;
+        ctl.innerHTML = `<div class="lgedit"><span class="chip cat sm" style="--c:var(--cat-${c})"><i></i>${CATS[c]}</span><input maxlength="40" value="${esc(tag)}" aria-label="Précision" placeholder="${SUB_HINT[c]}" title="Plusieurs précisions possibles, séparées par des virgules"><button type="button" class="btn pri sm" data-ok>Classer</button><button type="button" class="btn sm ghost" data-cancel>Annuler</button></div>`;
         const input = ctl.querySelector("input"); input.focus(); input.select();
         const go = () => act(() => api.classify(tag, c, input.value));
         ctl.querySelector("[data-ok]").onclick = go;
@@ -64,7 +64,7 @@ async function index(el) {
       else if (!WITH_SUB.includes(c.key)) body = `<p class="catnote">Les footings se comparent sur leur vitesse moyenne, sans précision.</p><a class="btn" href="${serieHref(c.key)}">Voir et comparer les footings</a>`;
       else body = `<ul class="sublist">${subs.map(s => `<li data-sub="${esc(s.sub)}"><a href="${serieHref(c.key, s.sub)}" title="Dernière séance le ${dateFr(s.last)}"><b>${esc(s.sub)}</b></a><span class="n">${s.count}</span><span class="acts"><button type="button" class="starbtn" data-ren="${esc(s.sub)}" title="Renommer ou fusionner" aria-label="Renommer ${esc(s.sub)}">${PEN}</button><button type="button" class="starbtn" data-del="${esc(s.sub)}" data-n="${s.count}" title="Retirer cette précision" aria-label="Retirer ${esc(s.sub)}">${BIN}</button></span></li>`).join("")}
           ${!q && c.nosub ? `<li class="nosub"><span>Sans précision</span><span class="n">${c.nosub}</span></li>` : ""}</ul>${q && !subs.length ? '<p class="catnote">Aucune précision ne correspond.</p>' : ""}`;
-      return `<section class="card catcard c4" style="--c:var(--cat-${c.key})" data-cat="${c.key}"><header class="card-h"><div><h3><a href="${serieHref(c.key)}"><i class="dot"></i>${c.label}</a></h3>
+      return `<section class="card catcard" style="--c:var(--cat-${c.key})" data-cat="${c.key}"><header class="card-h"><div><h3><a href="${serieHref(c.key)}"><i class="dot"></i>${c.label}</a></h3>
         <p class="sub">${plural(c.count, "séance")}${c.last ? ` · dernière le ${dateFr(c.last)}` : ""}</p></div></header>${body}${c.count ? `<a class="more-link" href="${serieHref(c.key)}">Toutes les séances ›</a>` : ""}</section>`;
     }).join("");
     el.querySelectorAll("[data-del]").forEach(b => { b.onclick = () => { const cat = b.closest("[data-cat]").dataset.cat;
@@ -89,7 +89,7 @@ async function index(el) {
 
   function draw() {
     const total = d.categories.reduce((n, c) => n + c.count, 0);
-    $("#sub").textContent = total ? `${plural(total, "séance")} classée${total > 1 ? "s" : ""}` + (d.unclassified ? ` · ${plural(d.unclassified, "course")} à classer` : "") : "Classez vos courses en Course, Footing ou Séance pour les comparer";
+    $("#sub").textContent = total ? `${plural(total, "séance")} classée${total > 1 ? "s" : ""}` + (d.unclassified ? ` · ${plural(d.unclassified, "course")} à classer` : "") : "Classez vos courses en Course, Footing, Séance ou Trail pour les comparer";
     drawTodo(); drawCats();
   }
   $("#q").oninput = e => { st.q = e.target.value; drawCats(); };
@@ -104,7 +104,7 @@ export async function render(el, cat, subParam) {
   let data;
   try { data = await api.serie(cat, sub); } catch { el.innerHTML = '<p class="msg">Série introuvable</p>'; return; }
   const { label: catName, mode, sessions: S } = data;
-  const avgOnly = mode === "average", splitMode = mode === "splits";      // footing : moyenne seule ; course : km par km ; séance : tours
+  const avgOnly = mode === "average", splitMode = mode === "splits";      // footing : moyenne seule ; course et trail : km par km ; séance : tours
   const name = sub ? `${catName} · ${sub}` : catName;
   if (!S.length) {
     el.innerHTML = `<a class="back" href="#/series">${CHEV}Séries</a><header class="page"><div><h1>${esc(name)}</h1></div></header><section class="card"><div class="empty">Aucune séance dans cette série.</div></section>`;

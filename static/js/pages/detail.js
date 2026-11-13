@@ -1,6 +1,6 @@
 import { api } from "../api.js";
 import { alpha, axis, fade, mk } from "../charts.js";
-import { CATS, WITH_SUB, serieHref, css, dateLong, esc, familyColor, fr, isSpeed, mmss, paceLabel, paceParts, ramp, speedParts, speedText, typeLabel } from "../format.js";
+import { CATS, SUB_HINT, WITH_SUB, serieHref, css, dateLong, esc, familyColor, fr, isSpeed, mmss, paceLabel, paceParts, ramp, speedParts, speedText, typeLabel } from "../format.js";
 import { osmMap } from "../map.js";
 
 let map, hl, marker, bounds, charts = [];
@@ -155,7 +155,7 @@ function saver(el) {
   return (txt, bad) => { const n = el.querySelector("#saved"); if (!n) return; n.textContent = txt; n.className = "save" + (bad ? " err" : ""); clearTimeout(t); if (txt && !bad) t = setTimeout(() => { n.textContent = ""; }, 2200); };
 }
 
-// ───────── Catégorie (Course / Footing / Séance) et précisions, à côté du titre ─────────
+// ───────── Catégorie (Course / Footing / Séance / Trail) et précisions, à côté du titre ─────────
 function wireCategory(el, a, say) {
   const box = el.querySelector("#tagline");
   let cat = a.category || null, subs = [...(a.subtags || [])];
@@ -173,7 +173,7 @@ function wireCategory(el, a, say) {
     box.innerHTML = cat
       ? catChip() + subChips(false) + (WITH_SUB.includes(cat) ? `<button type="button" class="tagadd" id="addsub" title="Ajouter une précision (10x400, piste, côte…)">${subs.length ? "+" : "+ précision"}</button>` : "") +
         `<button type="button" class="tagadd" id="catedit" title="Changer ou retirer la catégorie">modifier</button>`
-      : `<button type="button" class="tagadd" id="catedit" title="Classer cette séance : course, footing ou séance">+ catégorie</button>`;
+      : `<button type="button" class="tagadd" id="catedit" title="Classer cette séance : course, footing, séance ou trail">+ catégorie</button>`;
     box.querySelector("#catedit").onclick = pick;
     box.querySelector("#addsub")?.addEventListener("click", editSubs);
   };
@@ -196,7 +196,7 @@ function wireCategory(el, a, say) {
   const editSubs = () => {
     let known = [];
     box.innerHTML = catChip() + '<span class="subchips"></span>' +
-      `<input class="taginput" list="sublist" maxlength="60" autocomplete="off" aria-label="Nouvelle précision" placeholder="${cat === "seance" ? "ex. 10x400, piste" : "ex. 10 km, trail"}"><datalist id="sublist"></datalist>
+      `<input class="taginput" list="sublist" maxlength="60" autocomplete="off" aria-label="Nouvelle précision" placeholder="${SUB_HINT[cat]}"><datalist id="sublist"></datalist>
        <button type="button" class="tagadd" id="done">Terminer</button>`;
     const chips = box.querySelector(".subchips"), input = box.querySelector("input"), list = box.querySelector("#sublist");
     let queue = Promise.resolve();

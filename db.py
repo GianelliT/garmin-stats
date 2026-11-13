@@ -55,7 +55,7 @@ def ensure_meta(conn):
     conn.execute(TAG_META_DDL)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_activity_tags_tag ON activity_tags (tag)")
     cols = {r[1] for r in conn.execute("PRAGMA table_info(activity_meta)")}
-    for col in ("category", "subtag"):      # classement : catégorie (course / footing / seance) et précision (10 km, 10x400…)
+    for col in ("category", "subtag"):      # classement : catégorie (course / footing / seance / trail) et précision (10 km, 10x400…)
         if col not in cols:
             conn.execute(f"ALTER TABLE activity_meta ADD COLUMN {col} TEXT")
     conn.execute(SUBS_DDL)
