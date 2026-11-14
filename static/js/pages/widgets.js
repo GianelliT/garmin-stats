@@ -1,6 +1,6 @@
 import { api } from "../api.js";
-import { alpha, axis, fade, highlightMax, mk, narrow } from "../charts.js";
-import { css, dateFr, dateShort, esc, familyColor, familyLabel, fr, hm, isSpeedFamily, mmss, monthShort } from "../format.js";
+import { alpha, axis, timeTicks, fade, highlightMax, mk, narrow } from "../charts.js";
+import { CATS, css, dateFr, dateShort, esc, familyColor, familyLabel, fr, hm, isSpeedFamily, mmss, monthShort } from "../format.js";
 import { destroyForme, formePage } from "./forme.js";
 
 // Les widgets du dashboard. Chaque carte a une version compacte (le dashboard) et une version « détail » (page #/stat/<id>)
@@ -50,17 +50,96 @@ async function fitness(est, body) {
 // ───────── Volume hebdomadaire ─────────
 function volume(d, body, { fam, big, opts }) {
   const month = opts?.by === "month", W = month ? 3 : 4, unit = month ? "mois" : "semaine";
-  const weeks = big ? d.labels : d.labels.slice(-52), sl = a => big ? a : a.slice(-52);
-  const fams = Object.keys(d.series), tot = weeks.map((_, i) => fams.reduce((s, f) => s + sl(d.series[f])[i], 0));
+  const weeks = d.labels, dense = weeks.length > 80;      // toute la période choisie ; au-delà de ~80 barres, on les resserre
+  const fams = Object.keys(d.series), tot = weeks.map((_, i) => fams.reduce((s, f) => s + d.series[f][i], 0));
   const avg = tot.map((_, i) => { const w = tot.slice(Math.max(0, i - W + 1), i + 1); return +(w.reduce((a, b) => a + b, 0) / w.length).toFixed(1); });
   const color = f => familyColor(f), multi = fams.length > 1;
   charts.push(mk(canvas(body), { type: "bar", data: { labels: weeks, datasets: [
-    ...fams.map(f => ({ label: familyLabel(f), data: sl(d.series[f]), backgroundColor: color(f), borderRadius: multi ? 3 : 6, maxBarThickness: 22, stack: "s", order: 2 })),
+    ...fams.map(f => ({ label: familyLabel(f), data: d.series[f], backgroundColor: color(f), borderRadius: dense ? 0 : multi ? 3 : 6, maxBarThickness: 22, stack: "s", order: 2, ...(dense ? { categoryPercentage: 1, barPercentage: 0.9 } : {}) })),
     { type: "line", label: `Moyenne sur ${W} ${month ? "mois" : "semaines"}`, data: avg, borderColor: css("--ink"), borderWidth: 2, order: 1, borderDash: [5, 4] }] },
-    options: { scales: { x: axis.x({ stacked: true, ticks: { maxTicksLimit: big ? 14 : 9, callback(v) { return (month ? monthShort : dateShort)(this.getLabelForValue(v)); } } }), y: axis.y({ stacked: true }) },
-      plugins: { tooltip: { callbacks: { title: i => month ? monthShort(weeks[i[0].dataIndex]) : "Semaine du " + dateShort(weeks[i[0].dataIndex]), label: c => ` ${c.dataset.label} : ${fr(c.raw, 1)} km` } } } } }));
+    options: { scales: { x: axis.x({ stacked: true, ticks: { maxTicksLimit: big ? 14 : 9, ...timeTicks(weeks, { month }) } }), y: axis.y({ stacked: true }) },
+      plugins: { tooltip: { callbacks: { title: i => month ? monthShort(weeks[i[0].dataIndex]) : "Semaine du " + dateFr(weeks[i[0].dataIndex]), label: c => ` ${c.dataset.label} : ${fr(c.raw, 1)} km` } } } } }));
   const mean = tot.reduce((a, b) => a + b, 0) / (tot.length || 1);
   return { sub: `Moyenne : ${fr(mean, 1)} km par ${unit}`, aside: legend([...(multi ? fams.map(f => [familyLabel(f), color(f)]) : [[fam === "all" ? "Distance" : familyLabel(fam), color(fams[0])]]), [`Moyenne ${W} ${month ? "mois" : "sem."}`, css("--ink")]]) };
+}
+
+// ───────── Volume par catégorie (course, footing, séance, trail) + hausses trop rapides ─────────
+const CAT_KEYS = ["course", "footing", "seance", "trail", "none"];
+const catColor = k => k === "none" ? css("--line-2") : css(`--cat-${k}`);
+const catName = k => k === "none" ? "Sans catégorie" : CATS[k];
+const weekName = k => k === "seance" ? "Séance (tours rapides)" : catName(k);     // dans le volume hebdomadaire, une séance ne compte que pour ses tours rapides
+const alertColor = a => css(a.level === "high" ? "--bad" : "--warn");
+const alertText = (a, rule) => `+${a.pct} % : ${fr(a.km, 0)} km contre ${fr(a.base, 0)} km en moyenne sur les ${rule.window} semaines précédentes`;
+
+function catVolume(d, body, { big }) {
+  const weeks = d.labels, dense = weeks.length > 80;      // toute la période choisie ; au-delà de ~80 barres, on les resserre
+  const keys = CAT_KEYS.filter(k => d.series[k]), S = d.series;
+  const tot = weeks.map((_, i) => keys.reduce((s, k) => s + S[k][i], 0));
+  const alerts = new Map(d.alerts.map(a => [a.i, a]));
+  // petit triangle au-dessus des semaines dont le volume a trop augmenté
+  const marks = { id: "volAlert", afterDatasetsDraw(chart) {
+    const { ctx, scales: { y } } = chart, bars = chart.getDatasetMeta(0).data;
+    ctx.save();
+    alerts.forEach((a, i) => { const x = bars[i]?.x, top = y.getPixelForValue(tot[i]); if (x == null) return;
+      const z = dense ? 3.5 : 5;      // triangle plus petit quand les barres sont resserrées
+      ctx.fillStyle = alertColor(a); ctx.beginPath(); ctx.moveTo(x - z, top - 3 * z); ctx.lineTo(x + z, top - 3 * z); ctx.lineTo(x, top - 1.4 * z); ctx.closePath(); ctx.fill(); });
+    ctx.restore();
+  } };
+  charts.push(mk(canvas(body), { type: "bar", plugins: [marks], data: { labels: weeks, datasets: keys.map(k => ({ label: weekName(k), data: S[k], backgroundColor: catColor(k), borderRadius: dense ? 0 : 3, maxBarThickness: 22, stack: "s", ...(dense ? { categoryPercentage: 1, barPercentage: 0.9 } : {}) })) },
+    options: { scales: { x: axis.x({ stacked: true, ticks: { maxTicksLimit: big ? 14 : 9, ...timeTicks(weeks) } }), y: axis.y({ stacked: true, grace: "10%" }) },
+      plugins: { tooltip: { filter: c => c.raw > 0, callbacks: { title: i => "Semaine du " + dateFr(weeks[i[0].dataIndex]), label: c => ` ${c.dataset.label} : ${fr(c.raw, 1)} km`,
+        footer: i => { const n = i[0].dataIndex, a = alerts.get(n); return [`Total : ${fr(tot[n], 1)} km`, ...(a ? [`⚠ ${alertText(a, d.rule)}`] : [])]; } } } } } }));
+  const mean = tot.reduce((a, b) => a + b, 0) / (tot.length || 1);
+  const recent = [...alerts].filter(([i]) => i >= weeks.length - 2).map(([, a]) => a).at(-1);     // semaine en cours ou précédente
+  const warn = recent ? ` · <span class="alert-chip" style="--c:${alertColor(recent)}"><i></i>Hausse rapide, semaine du ${dateShort(recent.week)} : ${alertText(recent, d.rule)}</span>` : "";
+  // légende : les couleurs des catégories, puis les triangles du graphique (un par niveau d'alerte présent)
+  const tri = [["warn", `Hausse rapide (+${d.rule.pct} %)`], ["high", `Forte hausse (+${d.rule.high_pct} %)`]].filter(([l]) => [...alerts.values()].some(a => a.level === l));
+  const note = big ? " · séances : seuls les km des tours rapides comptent en séance, le reste est compté en footing" : "";
+  return { sub: `Moyenne : ${fr(mean, 1)} km par semaine${note}${warn}`,
+    aside: `<div class="legend">${keys.map(k => `<span><i style="--c:${catColor(k)}"></i>${weekName(k)}</span>`).join("")}${tri.map(([l, t]) => `<span class="tri"><i style="--c:${css(l === "high" ? "--bad" : "--warn")}"></i>${t}</span>`).join("")}</div>` };
+}
+
+function catVolumeTable(d, el) {
+  const rows = [...d.alerts].reverse().map(a => [dateFr(a.week), `<b>${fr(a.km, 1)} km</b>`, `${fr(a.base, 1)} km`, `<span class="alert-chip" style="--c:${alertColor(a)}"><i></i>+${a.pct} %</span>`]);
+  el.innerHTML = `<section class="card flush" style="margin-top:16px"><header class="card-h" style="padding:22px 22px 0"><div><h3>Hausses rapides</h3><p class="sub">Une semaine est signalée quand son volume dépasse de ${d.rule.pct} % la moyenne des ${d.rule.window} semaines précédentes (au moins ${d.rule.min_base_km} km par semaine de référence et ${d.rule.min_km} km la semaine signalée). Au-delà de +${d.rule.high_pct} %, le triangle passe au rouge.</p></div></header>
+    ${rows.length ? `<div class="scroll">${table(["Semaine du", "Volume", `Moyenne des ${d.rule.window} sem. précédentes`, "Hausse"], rows)}</div>` : '<div class="empty">Aucune hausse rapide sur cette période.</div>'}</section>`;
+}
+
+// ───────── Répartition par catégorie : deux anneaux (nombre d'activités, kilomètres) ─────────
+// En kilomètres, une séance ne compte que pour ses tours rapides ; le reste de la séance est compté en footing (voir stats.category_split).
+const SPLIT_KEYS = ["footing", "trail", "course", "seance"];
+
+function catSplit(d, body, { fam }) {
+  const pies = [
+    { title: "Nombre d'activités", data: d.count, fmt: v => fr(v), unit: "activités" },
+    { title: "Kilomètres", data: d.km, fmt: v => `${fr(v, v >= 100 ? 0 : 1)} km`, unit: "km" },
+  ].map(p => ({ ...p, keys: SPLIT_KEYS.filter(k => p.data[k] > 0), total: SPLIT_KEYS.reduce((s, k) => s + p.data[k], 0) }));
+  if (!pies[0].total) { body.innerHTML = '<div class="empty">Aucune course classée sur cette sélection.<br>Classez vos courses depuis la page Séries.</div>'; return {}; }
+  const pct = (v, t) => { const p = v / t * 100; return p > 0 && p < 1 ? "<1" : fr(p, 0); };
+  body.innerHTML = `<div class="pies">${pies.map(p => `<figure class="pie"><figcaption>${p.title}</figcaption><div class="chart"><canvas></canvas></div>
+    <ul class="pielist">${p.keys.map(k => `<li><i style="--c:${catColor(k)}"></i><span>${catName(k)}</span><b>${p.fmt(p.data[k])}</b><small>${pct(p.data[k], p.total)} %</small></li>`).join("")}</ul></figure>`).join("")}</div>`;
+  body.querySelectorAll("canvas").forEach((cv, i) => {
+    const p = pies[i];
+    const center = { id: "centerTotal", afterDraw(chart) {       // le total au milieu de l'anneau
+      const { ctx, chartArea: a } = chart, x = (a.left + a.right) / 2, y = (a.top + a.bottom) / 2;
+      ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = css("--ink"); ctx.font = `600 24px ${Chart.defaults.font.family}`; ctx.fillText(fr(p.total, i && p.total < 100 ? 1 : 0), x, y - 8);
+      ctx.fillStyle = css("--ink-3"); ctx.font = `12px ${Chart.defaults.font.family}`; ctx.fillText(p.unit, x, y + 14);
+      ctx.restore();
+    } };
+    charts.push(mk(cv, { type: "doughnut", plugins: [center], data: { labels: p.keys.map(catName), datasets: [{ data: p.keys.map(k => p.data[k]), backgroundColor: p.keys.map(catColor), borderColor: css("--surface"), borderWidth: 3, hoverOffset: 6 }] },
+      options: { cutout: "64%", interaction: { mode: "nearest", intersect: true }, plugins: { tooltip: { callbacks: { label: c => ` ${c.label} : ${p.fmt(c.raw)} (${pct(c.raw, p.total)} %)` } } } } }));
+  });
+  const notes = [d.seance.no_fast ? `${d.seance.no_fast} séance${d.seance.no_fast > 1 ? "s" : ""} sans tour rapide détecté : ${d.seance.no_fast > 1 ? "leurs" : "ses"} km sont comptés en footing` : "",
+    d.unclassified ? `${d.unclassified} course${d.unclassified > 1 ? "s" : ""} sans catégorie non comptée${d.unclassified > 1 ? "s" : ""}` : ""].filter(Boolean);
+  return { sub: ["Séances : seuls les km des tours rapides comptent", ...notes].join(" · ") };
+}
+
+function catSplitTable(d, el) {
+  const nT = SPLIT_KEYS.reduce((s, k) => s + d.count[k], 0), kT = SPLIT_KEYS.reduce((s, k) => s + d.km[k], 0), sh = (v, t) => t ? `${fr(v / t * 100, 0)} %` : "–";
+  el.innerHTML = `<section class="card flush" style="margin-top:16px"><header class="card-h" style="padding:22px 22px 0"><div><h3>Détail</h3>
+    <p class="sub">Séances : ${fr(d.seance.km, 1)} km au total, dont ${fr(d.seance.fast_km, 1)} km de tours rapides (comptés en séance). Les ${fr(Math.max(d.seance.km - d.seance.fast_km, 0), 1)} km d'échauffement, de récupération et de retour au calme sont comptés en footing.</p></div></header>
+    <div class="scroll">${table(["Catégorie", "Activités", "Part", "Kilomètres", "Part"], SPLIT_KEYS.map(k => [`<span class="chip cat sm" style="--c:${catColor(k)}"><i></i>${catName(k)}</span>`, fr(d.count[k]), sh(d.count[k], nT), `${fr(d.km[k], 1)} km`, sh(d.km[k], kT)]))}</div></section>`;
 }
 
 // ───────── Allure / vitesse moyenne par mois ─────────
@@ -140,17 +219,41 @@ function calendar(d, body, { fam, opts }) {
 }
 
 // ───────── Cumul annuel ─────────
+// Une couleur par année, stable d'une vue à l'autre (même année = même couleur) ; huit teintes, donc des années voisines ne se ressemblent jamais.
+const YEAR_COLORS = {
+  light: ["#4f46e5", "#0d9488", "#d97706", "#db2777", "#0ea5e9", "#7c3aed", "#16a34a", "#e11d48"],
+  dark: ["#8f8aff", "#2dd4bf", "#fbbf24", "#f472b6", "#38bdf8", "#a78bfa", "#4ade80", "#fb7185"],
+};
+const yearColor = y => YEAR_COLORS[matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"][+y % 8];
+const KEEP = 3;   // nombre d'années affichées par défaut
+
 function cumulative(d, body, { big }) {
-  const years = Object.keys(d).sort().slice(big ? 0 : -4), now = String(new Date().getFullYear()), ink = css("--ink-3");
-  const shade = (y, i) => y === now ? css("--ac") : alpha(ink, 0.3 + 0.55 * (i / Math.max(1, years.length - 2)));
+  const all = Object.keys(d).sort(), now = String(new Date().getFullYear());
+  const years = big ? all : all.slice(-KEEP), recent = new Set(all.slice(-KEEP));
   const starts = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335], M = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
-  charts.push(mk(canvas(body), { type: "line", data: { labels: Array.from({ length: 366 }, (_, i) => i + 1), datasets: years.map((y, i) =>
-      ({ label: y, data: d[y], borderColor: shade(y, i), borderWidth: y === now ? 3 : 2, order: y === now ? 0 : 1 })) },
+  charts.push(mk(canvas(body), { type: "line", data: { labels: Array.from({ length: 366 }, (_, i) => i + 1), datasets: years.map(y =>
+      ({ label: y, data: d[y], borderColor: yearColor(y), borderWidth: y === now ? 3 : 2, order: y === now ? 0 : 1, hidden: big && !recent.has(y) })) },
     options: { scales: { x: axis.x({ ticks: { autoSkip: false, maxRotation: 0, callback: (v, i) => starts.includes(i + 1) ? (narrow() ? M[starts.indexOf(i + 1)][0].toUpperCase() : M[starts.indexOf(i + 1)]) : "" } }), y: axis.y({}) },
-      plugins: { tooltip: { itemSort: (a, b) => b.raw - a.raw, callbacks: { title: i => new Date(2026, 0, +i[0].label).toLocaleDateString("fr-FR", { day: "numeric", month: "long" }), label: c => ` ${c.dataset.label} : ${fr(c.raw, 0)} km` } } } } }));
+      plugins: { tooltip: { itemSort: (a, b) => b.raw - a.raw, callbacks: { title: i => new Date(2024, 0, +i[0].label).toLocaleDateString("fr-FR", { day: "numeric", month: "long" }), label: c => ` ${c.dataset.label} : ${fr(c.raw, 0)} km` } } } } }));
   const ch = charts.at(-1);
-  return { aside: legend(years.map((y, i) => [y, shade(y, i)]), big), sub: "Distance cumulée depuis le 1er janvier" + (big ? " · cliquez une année dans la légende pour la masquer" : ""),
-    bind: card => big && card.querySelectorAll(".legend span[data-i]").forEach(s => { s.style.cursor = "pointer"; s.onclick = e => { e.stopPropagation(); const i = +s.dataset.i; ch.setDatasetVisibility(i, !ch.isDatasetVisible(i)); s.style.opacity = ch.isDatasetVisible(i) ? 1 : .35; ch.update(); }; }) };
+
+  if (!big) return { aside: legend(years.map(y => [y, yearColor(y)])), sub: `Distance cumulée depuis le 1er janvier · ${years.length} dernière${years.length > 1 ? "s" : ""} année${years.length > 1 ? "s" : ""}` };
+
+  // Vue détaillée : une pastille par année (toutes les années de l'historique), les 5 dernières cochées au départ.
+  const chips = `<div class="yrs">${years.map((y, i) => `<button type="button" class="yr" data-i="${i}" aria-pressed="${recent.has(y)}" style="--c:${yearColor(y)}"><i></i>${y}</button>`).join("")}</div>
+    <div class="yrs-q"><button type="button" class="btn sm" data-q="5">5 dernières</button><button type="button" class="btn sm" data-q="3">3 dernières</button><button type="button" class="btn sm" data-q="all">Toutes</button></div>`;
+  return { aside: chips, sub: "Distance cumulée depuis le 1er janvier · cliquez une ou plusieurs années pour les afficher ou les masquer",
+    bind: card => {
+      const btns = [...card.querySelectorAll(".yr[data-i]")];
+      const sync = () => { btns.forEach(b => b.setAttribute("aria-pressed", ch.isDatasetVisible(+b.dataset.i))); ch.update(); };
+      btns.forEach(b => b.onclick = e => { e.stopPropagation(); const i = +b.dataset.i; ch.setDatasetVisibility(i, !ch.isDatasetVisible(i)); sync(); });
+      card.querySelectorAll(".yrs-q [data-q]").forEach(b => b.onclick = e => {
+        e.stopPropagation();
+        const n = b.dataset.q === "all" ? years.length : +b.dataset.q;
+        years.forEach((y, i) => ch.setDatasetVisibility(i, i >= years.length - n));
+        sync();
+      });
+    } };
 }
 
 // ───────── Totaux annuels ─────────
@@ -255,6 +358,10 @@ export const SECTIONS = [
   { id: "volume", title: "Volume hebdomadaire", span: 8, stat: "weekly", scope: "view", draw: volume,
     detail: { title: "Volume d'entraînement", stat: o => o.by === "month" ? "monthly" : "weekly", controls: [{ key: "by", label: "Regrouper par", options: [["week", "Semaine"], ["month", "Mois"]], def: "week" }] } },
   { id: "pace", title: fam => isSpeedFamily(fam) ? "Vitesse moyenne" : "Allure moyenne", span: 4, stat: "pace", scope: "view", draw: paceTrend, detail: { extra: paceTable } },
+  { id: "catvol", title: "Volume par catégorie", span: 12, stat: "category_volume", scope: "view", draw: catVolume, when: fam => fam === "run",
+    detail: { extra: catVolumeTable } },
+  { id: "catsplit", title: "Répartition par catégorie", span: 12, stat: "category_split", scope: "view", draw: catSplit, when: fam => fam === "run",
+    detail: { extra: catSplitTable } },
   { id: "load", title: "Charge d'entraînement", span: 8, stat: "load", scope: "none", draw: loadChart,
     detail: { controls: [{ key: "days", label: "Période", options: [[90, "3 mois"], [180, "6 mois"], [365, "1 an"], [730, "2 ans"]], def: 180, backend: true }] } },
   { id: "rec", title: "Records", span: 4, stat: "best_efforts", scope: "sport", draw: records, when: fam => fam === "run" || fam === "all",
@@ -262,7 +369,7 @@ export const SECTIONS = [
       controls: [{ key: "dist", label: "Distance", options: [["1 km", "1 km"], ["5 km", "5 km"], ["10 km", "10 km"], ["Semi-marathon", "Semi-marathon"]], def: "5 km" }] } },
   { id: "cal", title: "Régularité", span: 12, stat: "calendar", scope: "sport", draw: calendar,
     detail: { controls: [{ key: "year", label: "Année", options: yearOptions, def: "12m" }] } },
-  { id: "cum", title: "Cumul annuel", span: 6, stat: "cumulative", scope: "sport", draw: cumulative },
+  { id: "cum", title: "Cumul annuel", span: 6, stat: "cumulative", scope: "sport", draw: cumulative, detail: {} },
   { id: "year", title: "Totaux par année", span: 6, stat: "yearly", scope: "sport", draw: yearly, detail: { extra: yearlyTable } },
   { id: "dist", title: "Distance des sorties", span: 4, stat: "distances", scope: "view", draw: dist(d => d.labels, d => d.n, "sorties", () => css("--ac")) },
   { id: "dow", title: "Jours préférés", span: 4, stat: "weekday", scope: "view", draw: dist(d => d.days, d => d.n, "sorties", () => css("--ac")) },

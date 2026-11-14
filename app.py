@@ -17,6 +17,7 @@ import syncer
 from contextlib import closing
 
 import series
+import suggest
 from db import DB_PATH, ensure_fitness, ensure_meta, ensure_places, ensure_tracks, place_key
 from sports import family
 
@@ -29,7 +30,7 @@ STATS = {
     "monthly": stats.monthly, "hours": stats.hours_monthly, "cumulative": stats.cumulative,
     "yearly": stats.yearly, "countries": stats.countries, "regions": stats.regions, "calendar": stats.calendar, "distances": stats.distances,
     "streaks": stats.streaks, "best_efforts": stats.best_efforts, "podium": stats.podium,
-    "load": fitness.load, "fitness": fitness.estimate,
+    "load": fitness.load, "fitness": fitness.estimate, "category_volume": stats.category_volume, "category_split": stats.category_split,
 }
 # champs du JSON brut de l'activité utilisés par les stats
 RAW = {**{f"z{i}": f"hrTimeInZone_{i}" for i in range(1, 6)},
@@ -56,15 +57,25 @@ def init_db():
         migrate_legacy(c)
 
 
+def fast_km_by_activity():
+    """{activité: km parcourus dans les tours rapides} pour les séances : sans l'échauffement, les récupérations ni le retour au calme."""
+    out = {}
+    for r in q("SELECT t.activity_id AS id, t.laps FROM tracks t JOIN activity_meta m ON m.activity_id = t.activity_id WHERE m.category = 'seance'"):
+        laps = json.loads(r["laps"] or "[]")
+        fast = set(series.split_efforts(laps))
+        out[r["id"]] = sum(l.get("dist") or 0 for l in laps if l.get("n") in fast) / 1000
+    return out
+
+
 def load_df():
     """Toutes les activités en DataFrame (mis en cache tant que la base ne change pas)."""
     m = os.path.getmtime(DB_PATH)
     if _cache.get("m") != m:
         df = pd.DataFrame(q("SELECT a.activity_id AS id, a.start_local, COALESCE(NULLIF(m.name, ''), a.name) AS name, a.type, "
-                            "a.distance_m, a.duration_s, a.elevation_m, a.avg_hr, a.raw FROM activities a "
+                            "a.distance_m, a.duration_s, a.elevation_m, a.avg_hr, m.category, a.raw FROM activities a "
                             "LEFT JOIN activity_meta m ON m.activity_id = a.activity_id"),
                           columns=["id", "start_local", "name", "type", "distance_m", "duration_s",
-                                   "elevation_m", "avg_hr", "raw"])
+                                   "elevation_m", "avg_hr", "category", "raw"])
         raw = df.pop("raw").map(lambda s: json.loads(s or "{}"))
         for col, key in RAW.items():
             df[col] = pd.to_numeric(raw.map(lambda r, k=key: r.get(k)), errors="coerce")
@@ -75,6 +86,7 @@ def load_df():
         df["hour"] = pd.to_numeric(df["start_local"].str[11:13], errors="coerce").fillna(0).astype(int)
         df["family"] = df["type"].map(family)
         df["km"] = df["distance_m"].fillna(0) / 1000
+        df["fast_km"] = df["id"].map(fast_km_by_activity()).fillna(0.0)     # séances : km des seuls tours rapides (voir series.py)
         df["duration_s"] = df["duration_s"].fillna(0)
         df["elevation_m"] = df["elevation_m"].fillna(0)
         places = pd.DataFrame(q("SELECT key AS place_key, country, region, city FROM places"),
@@ -378,6 +390,39 @@ def activities():
     return jsonify(rows)
 
 
+def suggestions():
+    """Courses à pied sans catégorie pour lesquelles une catégorie évidente existe (voir suggest.py), de la plus récente à la plus ancienne."""
+    out = []
+    for r in q("""SELECT a.activity_id AS id, a.date, COALESCE(NULLIF(m.name, ''), a.name) AS name, a.type, a.distance_m, t.laps
+                  FROM activities a LEFT JOIN activity_meta m ON m.activity_id = a.activity_id LEFT JOIN tracks t ON t.activity_id = a.activity_id
+                  WHERE m.category IS NULL ORDER BY a.start_local DESC"""):
+        if family(r["type"]) != "run":
+            continue
+        s = suggest.suggest_for(r["type"], json.loads(r.pop("laps") or "[]"))
+        if s:
+            out.append({**r, **s})
+    return out
+
+
+@app.get("/api/suggestions")
+def suggestions_list():
+    return jsonify(suggestions())
+
+
+@app.post("/api/suggestions/accept")
+def suggestions_accept():
+    """Accepte les suggestions de ces activités : {ids: [...]}. La catégorie est recalculée ici (jamais reprise du navigateur),
+    et une activité déjà classée entre-temps n'est pas touchée."""
+    ids = (request.get_json(silent=True) or {}).get("ids")
+    if not isinstance(ids, list) or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids):
+        abort(400)
+    todo = [s for s in suggestions() if s["id"] in set(ids)]
+    with closing(sqlite3.connect(DB_PATH)) as c, c:
+        for s in todo:
+            apply_category(c, [s["id"]], s["category"], [])
+    return jsonify({"accepted": len(todo)})
+
+
 @app.get("/api/tracks")
 def tracks():
     rows = q("SELECT activity_id AS id, poly FROM tracks WHERE has_gps = 1")
@@ -401,6 +446,7 @@ def activity(aid):
     a["track"] = json.loads(t[0]["points"]) if t else None
     a["splits"] = json.loads(t[0]["splits"]) if t else []
     a["laps"] = json.loads(t[0]["laps"] or "[]") if t else []
+    a["suggest"] = suggest.suggest_for(a["type"], a["laps"]) if not a.get("category") and family(a["type"]) == "run" else None
     return jsonify(a)
 
 

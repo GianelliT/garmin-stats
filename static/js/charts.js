@@ -1,4 +1,4 @@
-import { css } from "./format.js";
+import { css, dateShort, monthShort } from "./format.js";
 
 /** Ajoute de la transparence à une couleur hex #rrggbb. */
 export const alpha = (hex, a) => hex.length === 7 ? hex + Math.round(a * 255).toString(16).padStart(2, "0") : hex;
@@ -56,6 +56,28 @@ export const axis = {
   y: (o = {}) => merge({ beginAtZero: true, border: { display: false }, afterFit: s => { s.width = o.width ?? 44; },
     grid: { color: css("--line"), drawTicks: false }, ticks: { maxTicksLimit: 5, padding: 10, includeBounds: false } }, o),
 };
+
+const day = s => new Date((s.length === 7 ? s + "-01" : s) + "T12:00");
+const MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+
+/** Libellés de l'axe du temps (dates triées « 2026-10-14 » ou mois « 2026-10 »), adaptés à la durée affichée pour ne pas aligner
+ *  des « 14 oct. » sans année sur plusieurs années. À fusionner dans `ticks` (callback, et autoSkip/maxRotation quand on choisit les repères).
+ *    – jusqu'à ~14 mois : date courte (« 14 oct. »), ou « oct. 26 » pour des mois ;
+ *    – jusqu'à ~2 ans et demi : un repère par trimestre, l'année en janvier (« avr. », « juil. », « oct. », « 2027 ») ;
+ *    – au-delà : les années seules. Sur mobile, le passage aux années seules vient deux fois plus tôt (~15 mois). */
+export function timeTicks(labels, { month = false } = {}) {
+  const n = labels.length, days = n > 1 ? (day(labels[n - 1]) - day(labels[0])) / 864e5 : 0, k = narrow() ? 0.5 : 1;
+  const mode = days > 900 * k ? "year" : days > 430 ? "quarter" : "date";
+  if (mode === "date") return { callback: v => (month ? monthShort : dateShort)(labels[v]) };
+  const first = new Set(), key = d => mode === "year" ? d.getFullYear() : d.getFullYear() * 4 + Math.floor(d.getMonth() / 3);
+  let prev = null;
+  labels.forEach((l, i) => { const g = key(day(l)); if (g !== prev) { first.add(i); prev = g; } });      // première barre de chaque année / trimestre
+  return { autoSkip: false, maxRotation: 0, callback: v => {
+    if (!first.has(v)) return "";
+    const d = day(labels[v]);
+    return mode === "year" || d.getMonth() < 3 ? String(d.getFullYear()) : MONTHS[Math.floor(d.getMonth() / 3) * 3];
+  } };
+}
 
 /** Met en avant la plus grande valeur, estompe le reste. */
 export const highlightMax = (arr, color) => { const m = Math.max(...arr); return arr.map(v => v === m && m > 0 ? color : alpha(color, 0.35)); };

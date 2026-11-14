@@ -1,6 +1,6 @@
 import { api } from "../api.js";
-import { alpha, axis, fade, mk } from "../charts.js";
-import { css, dateFr, dateShort, fr, mmss } from "../format.js";
+import { alpha, axis, fade, mk, timeTicks } from "../charts.js";
+import { css, dateFr, fr, mmss } from "../format.js";
 
 let charts = [];
 export function destroyForme() { charts.forEach(c => c.destroy()); charts = []; }
@@ -59,7 +59,7 @@ export async function formePage(box) {
     $("#kp").innerHTML = kp.join("");
 
     const labels = rows.map(r => r.date), ac = C[0], v2 = rows.map(r => r.vo2).filter(v => v != null), spread = v2.length ? Math.max(...v2) - Math.min(...v2) : 0;
-    const tick = { maxTicksLimit: 10, callback(v) { return dateShort(this.getLabelForValue(v)); } };
+    const tick = { maxTicksLimit: 10, ...timeTicks(labels) };
     const title = i => dateFr(labels[i[0].dataIndex]);
     $("#vsub").textContent = state.source === "garmin" ? "Mesurée par votre montre" : "Estimée d'après vos meilleurs segments des 4 derniers mois";
     charts.push(mk($("#cv"), { type: "line", data: { labels, datasets: [{ data: rows.map(r => r.vo2), borderColor: ac, backgroundColor: fade(ac, .2), fill: true, spanGaps: true, borderWidth: 2.5, tension: 0.1 }] },

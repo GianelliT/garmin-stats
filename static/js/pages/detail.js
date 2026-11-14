@@ -1,6 +1,6 @@
 import { api } from "../api.js";
 import { alpha, axis, fade, mk } from "../charts.js";
-import { CATS, SUB_HINT, WITH_SUB, serieHref, css, dateLong, esc, familyColor, fr, isSpeed, mmss, paceLabel, paceParts, ramp, speedParts, speedText, typeLabel } from "../format.js";
+import { CATS, SUB_HINT, WITH_SUB, catPills, serieHref, css, dateLong, esc, familyColor, fr, isSpeed, mmss, paceLabel, paceParts, ramp, speedParts, speedText, typeLabel } from "../format.js";
 import { osmMap } from "../map.js";
 
 let map, hl, marker, bounds, charts = [];
@@ -173,8 +173,10 @@ function wireCategory(el, a, say) {
     box.innerHTML = cat
       ? catChip() + subChips(false) + (WITH_SUB.includes(cat) ? `<button type="button" class="tagadd" id="addsub" title="Ajouter une précision (10x400, piste, côte…)">${subs.length ? "+" : "+ précision"}</button>` : "") +
         `<button type="button" class="tagadd" id="catedit" title="Changer ou retirer la catégorie">modifier</button>`
-      : `<button type="button" class="tagadd" id="catedit" title="Classer cette séance : course, footing, séance ou trail">+ catégorie</button>`;
+      : (a.suggest ? `<span class="suggest"><span class="why">Suggestion :</span>${catPills(a.suggest.category, [], "")}<span class="why">(${esc(a.suggest.reason)})</span><button type="button" class="tagadd" id="accept" title="Classer cette séance en ${esc(CATS[a.suggest.category])}">Accepter</button></span>` : "") +
+        `<button type="button" class="tagadd" id="catedit" title="Classer cette séance : course, footing, séance ou trail">+ catégorie</button>`;
     box.querySelector("#catedit").onclick = pick;
+    box.querySelector("#accept")?.addEventListener("click", async () => { await save({ category: a.suggest.category }); show(); });
     box.querySelector("#addsub")?.addEventListener("click", editSubs);
   };
 

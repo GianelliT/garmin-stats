@@ -34,6 +34,14 @@ export const api = {
   },
   /** Vue d'ensemble des séries (jamais en cache : elle change à chaque classement). */
   series: () => fetch("/api/series").then(json),
+  /** Courses sans catégorie pour lesquelles une catégorie évidente existe (jamais en cache). */
+  suggestions: () => fetch("/api/suggestions").then(json),
+  /** Accepte la catégorie proposée pour ces activités ; le serveur la recalcule. */
+  async acceptSuggestions(ids) {
+    const d = await fetch("/api/suggestions/accept", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) }).then(json);
+    cache.clear();
+    return d;
+  },
   serie: (cat, sub) => fetch(`/api/serie/${cat}${sub ? "/" + encodeURIComponent(sub) : ""}`).then(json),
   async subRename(cat, sub, name) {
     const d = await fetch(`/api/serie/${cat}/${encodeURIComponent(sub)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }).then(json);

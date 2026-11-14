@@ -1,6 +1,6 @@
 """Statistiques du dashboard : fonctions pures DataFrame -> données JSON.
 
-Colonnes : id, name, type, family, date, hour, km, duration_s, elevation_m, best_* (voir app.load_df).
+Colonnes : id, name, type, family, category, date, hour, km, fast_km, duration_s, elevation_m, best_* (voir app.load_df).
 Ajouter une stat : une fonction ici + une ligne dans STATS (app.py) + un widget dans dashboard.js.
 """
 import pandas as pd
@@ -21,6 +21,79 @@ def _stack(df, col, freq, fmt):
 
 
 def weekly(df): return _stack(df, "km", "W-MON", "%Y-%m-%d")
+
+
+# Hausse trop rapide du volume : une semaine est signalée quand ses km dépassent de ALERT_PCT % la moyenne des ALERT_WINDOW semaines
+# précédentes. On compare à une moyenne (et non à la seule semaine d'avant) pour ne pas crier au loup après une semaine de repos.
+# Les petits volumes sont ignorés : +50 % de 6 km à 9 km n'est pas un risque.
+ALERT_WINDOW, ALERT_PCT, ALERT_HIGH_PCT = 4, 40, 60
+ALERT_MIN_BASE_KM, ALERT_MIN_KM = 15, 20
+CATEGORY_KEYS = ("course", "footing", "seance", "trail", "none")
+
+
+def volume_alerts(totals):
+    """Semaines (indices dans `totals`) dont le volume a trop augmenté : [{i, km, base, pct, level}]. level : « warn » ou « high »."""
+    out = []
+    for i in range(ALERT_WINDOW, len(totals)):
+        base = sum(totals[i - ALERT_WINDOW:i]) / ALERT_WINDOW
+        if base < ALERT_MIN_BASE_KM or totals[i] < ALERT_MIN_KM:
+            continue
+        pct = (totals[i] / base - 1) * 100
+        if pct >= ALERT_PCT:
+            out.append({"i": i, "km": r1(totals[i]), "base": r1(base), "pct": round(pct), "level": "high" if pct >= ALERT_HIGH_PCT else "warn"})
+    return out
+
+
+SPLIT_KEYS = ("footing", "trail", "course", "seance")
+
+
+def _nuanced_km(run):
+    """Kilomètres de course à pied découpés par catégorie, une ligne (date, cat, km) par morceau. Une séance ne compte que pour ses
+    tours rapides (`fast_km`) ; le reste (échauffement, récupérations, retour au calme) est compté en footing. Les courses sans
+    catégorie sont en « none ». Source unique pour l'anneau des km et le volume hebdomadaire : les deux affichent les mêmes valeurs."""
+    cat = run["category"].fillna("none")
+    is_s = cat == "seance"
+    fast = run["fast_km"] if "fast_km" in run else pd.Series(0.0, index=run.index)
+    fast = pd.concat([fast.clip(lower=0), run["km"]], axis=1).min(axis=1)      # jamais plus que la distance de l'activité
+    main = pd.DataFrame({"date": run["date"], "cat": cat, "km": run["km"].where(~is_s, fast)})
+    rest = pd.DataFrame({"date": run.loc[is_s, "date"], "cat": "footing", "km": (run["km"] - fast)[is_s]})
+    return pd.concat([main, rest], ignore_index=True)
+
+
+def category_split(df):
+    """Répartition des courses classées entre footing, trail, course et séance : en nombre d'activités et en kilomètres.
+    En kilomètres, une séance ne compte que pour ses tours rapides (`fast_km`) ; le reste (échauffement, récupérations, retour au calme)
+    est compté en footing. Une séance sans tour rapide détecté (ou sans tours enregistrés) passe donc entièrement en footing."""
+    run = df[df["family"] == "run"]
+    if run.empty:
+        return {}
+    done = run[run["category"].isin(SPLIT_KEYS)]
+    seance = done[done["category"] == "seance"]
+    fast_col = seance["fast_km"] if "fast_km" in seance else pd.Series(0.0, index=seance.index)
+    fast = pd.concat([fast_col, seance["km"]], axis=1).min(axis=1)      # jamais plus que la distance de la séance
+    nuanced = _nuanced_km(done).groupby("cat")["km"].sum()
+    km = {k: float(nuanced.get(k, 0.0)) for k in SPLIT_KEYS}
+    seance_total = float(seance["km"].sum())
+    return {"count": {k: int((done["category"] == k).sum()) for k in SPLIT_KEYS}, "km": {k: r1(v) for k, v in km.items()},
+            "seance": {"n": len(seance), "km": r1(seance_total), "fast_km": r1(fast.sum()), "no_fast": int((fast <= 0).sum())},
+            "unclassified": int(run["category"].isna().sum())}
+
+
+def category_volume(df):
+    """Km par semaine de course à pied, empilés par catégorie (course, footing, séance, trail, sans catégorie), et hausses trop rapides.
+    Le total de la semaine est celui de toutes les courses : découper une séance entre séance et footing ne change pas le total."""
+    df = df[df["family"] == "run"]
+    rule = {"window": ALERT_WINDOW, "pct": ALERT_PCT, "high_pct": ALERT_HIGH_PCT, "min_base_km": ALERT_MIN_BASE_KM, "min_km": ALERT_MIN_KM}
+    if df.empty:
+        return {"labels": [], "series": {}, "alerts": [], "rule": rule}
+    s = _nuanced_km(df).set_index("date")      # séance = tours rapides seulement, le reste en footing (comme l'anneau des km)
+    idx = s["km"].resample("W-MON", label="left", closed="left").sum().index
+    wide = s.groupby("cat")["km"].resample("W-MON", label="left", closed="left").sum().unstack(0).reindex(idx).fillna(0)
+    labels = [d.strftime("%Y-%m-%d") for d in idx]
+    alerts = volume_alerts([float(v) for v in wide.sum(axis=1)])
+    for a in alerts:
+        a["week"] = labels[a["i"]]
+    return {"labels": labels, "series": {c: [r1(v) for v in wide[c]] for c in CATEGORY_KEYS if c in wide.columns}, "alerts": alerts, "rule": rule}
 def monthly(df): return _stack(df, "km", "MS", "%Y-%m")
 def hours_monthly(df): return _stack(df.assign(h=df["duration_s"] / 3600), "h", "MS", "%Y-%m")
 

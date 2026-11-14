@@ -120,6 +120,7 @@ input:focus,select:focus{outline:2px solid color-mix(in srgb,var(--ac) 40%,trans
 .card-h .sub{font-size:12.5px;margin-top:2px}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:flex-end;font-size:12px;color:var(--ink-2)}
 .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--c)}
+.legend .tri i{width:0;height:0;border-radius:0;background:none;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid var(--c);margin-right:5px;vertical-align:-1px}   /* triangle comme sur le graphique */
 .chart{position:relative;height:250px;min-height:0}
 .empty{display:grid;place-items:center;flex:1;min-height:120px;color:var(--ink-3);text-align:center;font-size:13px}
 
@@ -420,6 +421,22 @@ input[type=checkbox]{width:16px;height:16px;min-width:0;padding:0;accent-color:v
 .lgedit input{height:32px;width:200px}
 .btn.ghost{border-color:transparent;background:none;color:var(--ink-3)} .btn.ghost:hover{color:var(--bad);border-color:transparent}
 .todo .more{margin:10px 0 0}
+.pies{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px}
+/* Répartition par catégorie : anneau à gauche, légende à droite, pour remplir la largeur et réduire la hauteur de la carte */
+.pies{gap:24px 40px}
+.pie{display:grid;grid-template-columns:minmax(150px,210px) minmax(0,1fr);grid-template-areas:"cap cap" "chart list";align-items:center;column-gap:28px;row-gap:6px}
+.pie figcaption{grid-area:cap;font-weight:600;color:var(--ink-2);text-align:left}
+.pies .chart,.stat-page .pies .chart{grid-area:chart;height:210px}
+.stat-page .pies .chart{height:280px} .stat-page .pie{grid-template-columns:minmax(200px,280px) minmax(0,1fr)}
+.pielist{grid-area:list;display:flex;flex-direction:column;gap:10px;margin:0}
+.pielist li{display:grid;grid-template-columns:auto 1fr auto 44px;align-items:center;gap:10px}
+.pielist i{width:10px;height:10px;border-radius:50%;background:var(--c)} .pielist small{color:var(--ink-3);text-align:right}
+@media(max-width:1100px){.pies{grid-template-columns:1fr}}
+@media(max-width:480px){.pie,.stat-page .pie{grid-template-columns:1fr;grid-template-areas:"cap" "chart" "list"} .pie figcaption{text-align:center} .pielist{margin-top:10px}}
+.suggest{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap} .suggest .why{color:var(--ink-3);font-size:12.5px}
+.lgname a:hover b{color:var(--ac)}
+.alert-chip{display:inline-flex;align-items:center;gap:7px;padding:2px 10px;border-radius:999px;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--ink);font-size:12.5px;font-weight:500}
+.alert-chip>i{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid var(--c);flex:none}
 
 .subchips{display:contents}
 
@@ -571,3 +588,13 @@ body{overflow-x:clip}
 .wh-it.on{color:var(--ink)}
 .wh-sep{margin-top:108px;height:44px;line-height:42px;font:600 22px var(--font);color:var(--ink-3)}
 @media(min-width:761px){.wh-ov{align-items:center}.wh-sheet{border-radius:20px;padding-bottom:16px}}
+
+/* Cumul annuel : sélection des années (vue détaillée) */
+.yrs{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.yr{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink-3);font:inherit;font-size:12.5px;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.yr i{width:8px;height:8px;border-radius:50%;background:var(--c);opacity:.35}
+.yr:hover{border-color:var(--c)}
+.yr[aria-pressed=true]{color:var(--ink);border-color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.yr[aria-pressed=true] i{opacity:1}
+.yrs-q{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
+@media(max-width:600px){.yrs,.yrs-q{justify-content:flex-start}}

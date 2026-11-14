@@ -1,6 +1,6 @@
 import { api } from "../api.js";
 import { alpha, axis, mk } from "../charts.js";
-import { CATS, SUB_HINT, WITH_SUB, css, dateFr, dateShort, esc, fr, isSpeed, mmss, serieHref } from "../format.js";
+import { CATS, SUB_HINT, WITH_SUB, catPills, css, dateFr, dateShort, esc, fr, isSpeed, mmss, serieHref } from "../format.js";
 import { presetFilter, store } from "../filters.js";
 
 const MAX = 5;   // séances comparables d'un coup
@@ -18,13 +18,29 @@ async function index(el) {
     el.innerHTML = `<header class="page"><div><h1>Séries</h1></div></header><section class="card"><div class="empty">Les séries (course, footing, séance, trail) concernent la course à pied.<br>Choisissez « Course » en haut de page.</div></section>`;
     return;
   }
-  let d = await api.series();
-  const st = { q: "", all: false };
+  let [d, sg] = await Promise.all([api.series(), api.suggestions()]);
+  const st = { q: "", all: false, allSugg: false };
   el.innerHTML = `<header class="page"><div><h1>Séries</h1><p class="sub" id="sub"></p></div><div class="actions"><input id="q" type="search" placeholder="Filtrer les précisions" aria-label="Filtrer les précisions"></div></header>
-    <div class="grid" id="cats"></div><div id="todo"></div>`;
+    <div class="grid" id="cats"></div><div id="sugg"></div><div id="todo"></div>`;
   const $ = s => el.querySelector(s);
-  const reload = async () => { d = await api.series(); draw(); };
+  const reload = async () => { [d, sg] = await Promise.all([api.series(), api.suggestions()]); draw(); };
   const act = async fn => { try { await fn(); } catch (e) { alert(e.message); } await reload(); };
+
+  // ───────── Suggestions : une catégorie évidente (trail, piste, tours rapides) à accepter en un clic ─────────
+  function drawSugg() {
+    const box = $("#sugg");
+    if (!sg.length) { box.innerHTML = ""; return; }
+    const shown = st.allSugg ? sg : sg.slice(0, 5);
+    const by = Object.entries(sg.reduce((m, s) => (m[s.category] = (m[s.category] || 0) + 1, m), {})).map(([k, n]) => `${n} ${CATS[k]}`).join(" · ");
+    box.innerHTML = `<section class="card todo"><header class="card-h"><div><h3>Suggestions de classement</h3><p class="sub">${plural(sg.length, "course")} avec une catégorie évidente · ${by}</p></div>
+      <button type="button" class="btn pri sm" id="acceptall">Tout accepter (${sg.length})</button></header>
+      ${shown.map(s => `<div class="lg" data-id="${s.id}"><span class="lgname"><a href="#/activity/${s.id}" title="Ouvrir la séance"><b>${esc(s.name)}</b></a><small>${dateFr(s.date)} · ${esc(s.reason)}</small></span>
+        <div class="lgctl">${catPills(s.category, [], "sm")}</div><button type="button" class="btn sm" data-accept>Accepter</button></div>`).join("")}
+      ${sg.length > 5 ? `<button type="button" class="lnk-btn more" id="moresugg">${st.allSugg ? "Réduire" : `Voir les ${sg.length - 5} autres`}</button>` : ""}</section>`;
+    $("#moresugg")?.addEventListener("click", () => { st.allSugg = !st.allSugg; drawSugg(); });
+    $("#acceptall").onclick = () => { if (confirm(`Classer ${plural(sg.length, "course")} comme proposé (${by}) ?\nVous pourrez modifier chaque classement depuis la séance.`)) act(() => api.acceptSuggestions(sg.map(s => s.id))); };
+    box.querySelectorAll("[data-accept]").forEach(b => { b.onclick = () => act(() => api.acceptSuggestions([+b.closest(".lg").dataset.id])); });
+  }
 
   function drawTodo() {
     const L = d.legacy, box = $("#todo");
@@ -90,7 +106,7 @@ async function index(el) {
   function draw() {
     const total = d.categories.reduce((n, c) => n + c.count, 0);
     $("#sub").textContent = total ? `${plural(total, "séance")} classée${total > 1 ? "s" : ""}` + (d.unclassified ? ` · ${plural(d.unclassified, "course")} à classer` : "") : "Classez vos courses en Course, Footing, Séance ou Trail pour les comparer";
-    drawTodo(); drawCats();
+    drawSugg(); drawTodo(); drawCats();
   }
   $("#q").oninput = e => { st.q = e.target.value; drawCats(); };
   draw();
