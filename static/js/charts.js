@@ -30,7 +30,7 @@ const barValues = {
 export function setup() {
   const D = Chart.defaults;
   D.color = css("--ink-3"); D.borderColor = css("--line");
-  D.font.family = getComputedStyle(document.body).fontFamily; D.font.size = 12;
+  D.font.family = getComputedStyle(document.body).fontFamily; D.font.size = narrow() ? 11 : 12;
   D.responsive = true; D.maintainAspectRatio = false;
   D.animation = matchMedia("(prefers-reduced-motion: reduce)").matches ? false : { duration: 500, easing: "easeOutQuart" };
   D.animations.colors = false;   // les dégradés (CanvasGradient) ne sont pas interpolables
@@ -53,8 +53,8 @@ export const axis = {
   /** Axe horizontal : pas de quadrillage, libellés espacés. */
   x: (o = {}) => { const a = merge({ grid: { display: false }, border: { display: false }, ticks: { maxTicksLimit: 8, padding: 8, maxRotation: 0 } }, o); if (narrow()) a.ticks.maxTicksLimit = Math.min(a.ticks.maxTicksLimit ?? 8, 4); return a; },
   /** Axe vertical : quadrillage discret, largeur fixe pour aligner les graphiques empilés. */
-  y: (o = {}) => merge({ beginAtZero: true, border: { display: false }, afterFit: s => { s.width = o.width ?? 44; },
-    grid: { color: css("--line"), drawTicks: false }, ticks: { maxTicksLimit: 5, padding: 10, includeBounds: false } }, o),
+  y: (o = {}) => merge({ beginAtZero: true, border: { display: false }, afterFit: s => { const w = o.width ?? 44; s.width = narrow() ? Math.max(30, w - 12) : w; },
+    grid: { color: css("--line"), drawTicks: false }, ticks: { maxTicksLimit: 5, padding: narrow() ? 6 : 10, includeBounds: false } }, o),
 };
 
 const day = s => new Date((s.length === 7 ? s + "-01" : s) + "T12:00");

@@ -90,7 +90,7 @@ export async function render(el) {
       <section class="card c6"><header class="card-h"><div><h3>Temps équivalents</h3><p class="sub">Ce que vaut cette performance sur les autres distances</p></div>
         <label class="vd-vdot">VDOT<input id="in-vdot" inputmode="decimal" autocomplete="off"></label></header><div id="eq"></div></section>
       <section class="card c6"><header class="card-h"><div><h3>Allures d'entraînement</h3><p class="sub">Calculées d'après la VDOT, à ajuster selon le terrain et la météo</p></div></header><div id="tp"></div></section>
-      <section class="card flush c12"><header class="card-h" style="padding:22px 22px 0;margin-bottom:12px"><div><h3>Tables de correspondance</h3><p class="sub" id="tsub"></p></div>
+      <section class="card flush c12"><header class="card-h pad"><div><h3>Tables de correspondance</h3><p class="sub" id="tsub"></p></div>
         <div class="actions" id="tctl"></div></header>
         <div class="vd-tabs"><div class="seg" id="mode"><button data-v="pace">Par allure</button><button data-v="time">Par temps</button><button data-v="vdot">Par VDOT</button></div></div>
         <div class="scroll vd-scroll" id="tb"></div></section>

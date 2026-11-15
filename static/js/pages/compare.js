@@ -121,7 +121,7 @@ export async function render(el, idsParam) {
       ${hasMap ? '<section class="card flush c7 hh" style="position:relative"><div id="map" class="map"></div></section>' : ""}
       <section class="card c${hasMap ? 5 : 12}"><header class="card-h"><div><h3>En chiffres</h3><p class="sub">${S.length === 2 ? "Écart = B moins A, en vert quand B est plus rapide" : "La meilleure valeur de chaque ligne est en vert"}</p></div></header><div class="scroll tblwrap">${table(S)}</div></section>
       ${views.length ? `<section class="card c12"><header class="card-h"><div class="seg">${views.map(([l], i) => `<button data-i="${i}">${l}</button>`).join("")}</div>
-        <div class="legend">${S.map((a, i) => `<span><i style="--c:var(${VARS[i]})"></i>${label(a, i)}</span>`).join("")}</div></header><div class="chart" style="height:320px"><canvas></canvas></div></section>` : ""}
+        <div class="legend">${S.map((a, i) => `<span><i style="--c:var(${VARS[i]})"></i>${label(a, i)}</span>`).join("")}</div></header><div class="chart" style="--h:320px"><canvas></canvas></div></section>` : ""}
     </div>`;
 
   el.querySelector("#add")?.addEventListener("change", e => { if (e.target.value) location.hash = `#/compare/${[...ids, e.target.value].join("/")}`; });

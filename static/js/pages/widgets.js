@@ -101,7 +101,7 @@ function catVolume(d, body, { big }) {
 
 function catVolumeTable(d, el) {
   const rows = [...d.alerts].reverse().map(a => [dateFr(a.week), `<b>${fr(a.km, 1)} km</b>`, `${fr(a.base, 1)} km`, `<span class="alert-chip" style="--c:${alertColor(a)}"><i></i>+${a.pct} %</span>`]);
-  el.innerHTML = `<section class="card flush" style="margin-top:16px"><header class="card-h" style="padding:22px 22px 0"><div><h3>Hausses rapides</h3><p class="sub">Une semaine est signalée quand son volume dépasse de ${d.rule.pct} % la moyenne des ${d.rule.window} semaines précédentes (au moins ${d.rule.min_base_km} km par semaine de référence et ${d.rule.min_km} km la semaine signalée). Au-delà de +${d.rule.high_pct} %, le triangle passe au rouge.</p></div></header>
+  el.innerHTML = `<section class="card flush mt"><header class="card-h pad"><div><h3>Hausses rapides</h3><p class="sub">Une semaine est signalée quand son volume dépasse de ${d.rule.pct} % la moyenne des ${d.rule.window} semaines précédentes (au moins ${d.rule.min_base_km} km par semaine de référence et ${d.rule.min_km} km la semaine signalée). Au-delà de +${d.rule.high_pct} %, le triangle passe au rouge.</p></div></header>
     ${rows.length ? `<div class="scroll">${table(["Semaine du", "Volume", `Moyenne des ${d.rule.window} sem. précédentes`, "Hausse"], rows)}</div>` : '<div class="empty">Aucune hausse rapide sur cette période.</div>'}</section>`;
 }
 
@@ -123,8 +123,8 @@ function catSplit(d, body, { fam }) {
     const center = { id: "centerTotal", afterDraw(chart) {       // le total au milieu de l'anneau
       const { ctx, chartArea: a } = chart, x = (a.left + a.right) / 2, y = (a.top + a.bottom) / 2;
       ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillStyle = css("--ink"); ctx.font = `600 24px ${Chart.defaults.font.family}`; ctx.fillText(fr(p.total, i && p.total < 100 ? 1 : 0), x, y - 8);
-      ctx.fillStyle = css("--ink-3"); ctx.font = `12px ${Chart.defaults.font.family}`; ctx.fillText(p.unit, x, y + 14);
+      ctx.fillStyle = css("--ink"); const sz = Math.max(13, Math.min(24, (a.right - a.left) / 6.2)); ctx.font = `600 ${sz}px ${Chart.defaults.font.family}`; ctx.fillText(fr(p.total, i && p.total < 100 ? 1 : 0), x, y - sz / 3);
+      ctx.fillStyle = css("--ink-3"); ctx.font = `${Math.max(10, Math.min(12, sz / 2))}px ${Chart.defaults.font.family}`; ctx.fillText(p.unit, x, y + sz * 0.62);
       ctx.restore();
     } };
     charts.push(mk(cv, { type: "doughnut", plugins: [center], data: { labels: p.keys.map(catName), datasets: [{ data: p.keys.map(k => p.data[k]), backgroundColor: p.keys.map(catColor), borderColor: css("--surface"), borderWidth: 3, hoverOffset: 6 }] },
@@ -137,7 +137,7 @@ function catSplit(d, body, { fam }) {
 
 function catSplitTable(d, el) {
   const nT = SPLIT_KEYS.reduce((s, k) => s + d.count[k], 0), kT = SPLIT_KEYS.reduce((s, k) => s + d.km[k], 0), sh = (v, t) => t ? `${fr(v / t * 100, 0)} %` : "–";
-  el.innerHTML = `<section class="card flush" style="margin-top:16px"><header class="card-h" style="padding:22px 22px 0"><div><h3>Détail</h3>
+  el.innerHTML = `<section class="card flush mt"><header class="card-h pad"><div><h3>Détail</h3>
     <p class="sub">Séances : ${fr(d.seance.km, 1)} km au total, dont ${fr(d.seance.fast_km, 1)} km de tours rapides (comptés en séance). Les ${fr(Math.max(d.seance.km - d.seance.fast_km, 0), 1)} km d'échauffement, de récupération et de retour au calme sont comptés en footing.</p></div></header>
     <div class="scroll">${table(["Catégorie", "Activités", "Part", "Kilomètres", "Part"], SPLIT_KEYS.map(k => [`<span class="chip cat sm" style="--c:${catColor(k)}"><i></i>${catName(k)}</span>`, fr(d.count[k]), sh(d.count[k], nT), `${fr(d.km[k], 1)} km`, sh(d.km[k], kT)]))}</div></section>`;
 }
@@ -162,8 +162,8 @@ function paceTrend(d, body, { fam, big }) {
 // ───────── Charge d'entraînement : forme, fatigue, fraîcheur ─────────
 function loadChart(d, body, { big }) {
   const [h1, h2] = big ? [300, 140] : [170, 96];
-  body.innerHTML = `<div class="mc"><div class="mc-h"><b><i style="--c:var(--ac)"></i>Forme et fatigue</b></div><div class="chart" style="height:${h1}px"><canvas></canvas></div></div>` +
-    `<div class="mc"><div class="mc-h"><b><i style="--c:var(--good)"></i>Fraîcheur</b><span>Positive = reposé, négative = en charge</span></div><div class="chart" style="height:${h2}px"><canvas></canvas></div></div>`;
+  body.innerHTML = `<div class="mc"><div class="mc-h"><b><i style="--c:var(--ac)"></i>Forme et fatigue</b></div><div class="chart" style="--h:${h1}px"><canvas></canvas></div></div>` +
+    `<div class="mc"><div class="mc-h"><b><i style="--c:var(--good)"></i>Fraîcheur</b><span>Positive = reposé, négative = en charge</span></div><div class="chart" style="--h:${h2}px"><canvas></canvas></div></div>`;
   const [c1, c2] = body.querySelectorAll("canvas"), ac = css("--ac"), ld = css("--load"), g = css("--good"), bad = css("--bad");
   const tick = { maxTicksLimit: 8, callback(v) { return dateShort(this.getLabelForValue(v)); } };
   const tt = { title: i => dateFr(d.labels[i[0].dataIndex]) };
@@ -324,15 +324,15 @@ function effortsTable(d, el, { opts }) {
   const top = [...list].sort((a, b) => a.time_s - b.time_s).slice(0, 10);
   let best = Infinity, prev = null;
   const prog = list.filter(e => e.time_s < best && (best = e.time_s, true)).map(e => { const gain = prev == null ? null : prev - e.time_s; prev = e.time_s; return [e, gain]; }).reverse();
-  el.innerHTML = `<div class="grid" style="margin-top:16px">
-    <section class="card flush c6"><header class="card-h" style="padding:22px 22px 0;margin-bottom:12px"><div><h3>Les 10 meilleurs temps</h3><p class="sub">${label}</p></div></header>
+  el.innerHTML = `<div class="grid mt">
+    <section class="card flush c6"><header class="card-h pad"><div><h3>Les 10 meilleurs temps</h3><p class="sub">${label}</p></div></header>
       <div class="scroll">${table(["#", "Temps", "Allure", "Date", "Séance"], top.map((e, i) => [i + 1, `<b>${mmss(e.time_s)}</b>`, pk(e.time_s), dateFr(e.date), link(e)]))}</div></section>
-    <section class="card flush c6"><header class="card-h" style="padding:22px 22px 0;margin-bottom:12px"><div><h3>Progression du record</h3><p class="sub">Chaque fois que le record a été battu</p></div></header>
+    <section class="card flush c6"><header class="card-h pad"><div><h3>Progression du record</h3><p class="sub">Chaque fois que le record a été battu</p></div></header>
       <div class="scroll" style="max-height:440px">${table(["Date", "Nouveau record", "Gain", "Séance"], prog.map(([e, g]) => [dateFr(e.date), `<b>${mmss(e.time_s)}</b>`, g == null ? "–" : `<span class="good">−${mmss(g)}</span>`, link(e)]))}</div></section></div>`;
 }
 
 function yearlyTable(d, el) {
-  el.innerHTML = `<section class="card flush" style="margin-top:16px"><div class="scroll">${table(["Année", "Sorties", "Distance", "Temps", "Dénivelé", "Km par sortie"],
+  el.innerHTML = `<section class="card flush mt"><div class="scroll">${table(["Année", "Sorties", "Distance", "Temps", "Dénivelé", "Km par sortie"],
     [...d].reverse().map(y => [`<b>${y.year}</b>`, fr(y.n), `${fr(y.km, 0)} km`, hm(y.hours * 3600), `${fr(y.elev)} m`, y.n ? `${fr(y.km / y.n, 1)} km` : "–"]))}</div></section>`;
 }
 
@@ -342,7 +342,7 @@ function paceTable(d, el, { fam }) {
     const prev = vals.slice(0, i).reverse().find(x => x != null), x = vals[i], dl = x != null && prev != null ? x - prev : null, better = speed ? dl > 0 : dl < 0;
     return [monthShort(l), `<b>${fmt(x)}</b>`, dl == null || dl === 0 ? "–" : `<span class="${better ? "good" : "bad"}">${dl > 0 ? "+" : "−"}${speed ? fr(Math.abs(dl), 1) + " km/h" : mmss(Math.abs(dl)) + "/km"}</span>`];
   }).reverse();
-  el.innerHTML = `<section class="card flush" style="margin-top:16px"><div class="scroll" style="max-height:480px">${table(["Mois", speed ? "Vitesse moyenne" : "Allure moyenne", "Évolution"], rows)}</div></section>`;
+  el.innerHTML = `<section class="card flush mt"><div class="scroll" style="max-height:480px">${table(["Mois", speed ? "Vitesse moyenne" : "Allure moyenne", "Évolution"], rows)}</div></section>`;
 }
 
 const yearOptions = ({ acts }) => [["12m", "12 derniers mois"], ...[...new Set(acts.map(a => a.date.slice(0, 4)))].sort().reverse().map(y => [y, y])];

@@ -47,7 +47,7 @@ export async function render(el) {
       const prev = p && p.n ? [p.km, p.n, p.hours, null, p.elev, null] : [];
       kp.innerHTML = kpiList(d, fam).map(([l, v, u, raw], i) => {
         const c = raw != null && prev[i] != null ? pct(raw, prev[i]) : null;
-        return `<div class="kpi"><div><dd>${v}${u ? `<small>${u}</small>` : ""}</dd><dt>${l}</dt></div><span class="d">${c == null ? "" : `${c > 0 ? "+" : c < 0 ? "−" : ""}${Math.abs(c)} % vs période préc.`}</span></div>`;
+        return `<div class="kpi"><div><dd>${v}${u ? `<small>${u}</small>` : ""}</dd><dt>${l}</dt></div><span class="d">${c == null ? "" : `${c > 0 ? "+" : c < 0 ? "−" : ""}${Math.abs(c)} %<span class="vs-l"> vs période préc.</span><span class="vs-s"> vs préc.</span>`}</span></div>`;
       }).join("");
     }).catch(e => console.error(e));
 

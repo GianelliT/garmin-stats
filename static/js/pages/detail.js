@@ -42,7 +42,7 @@ function lapsCard(a, gps) {
   const rows = laps.map(l => `<tr data-i="${l.n - 1}"><td>${l.n}</td><td>${n(l.dist, v => fr(v / 1000, 2) + " km")}</td><td>${n(l.time, mmss)}</td><td>${speedText(l.spd, a.type)}</td>
     <td>${n(l.hr)}</td><td>${n(l.hr_max)}</td><td>${n(l.up, v => Math.round(v) + " m")}</td><td>${n(l.down, v => Math.round(v) + " m")}</td>
     ${cad ? `<td>${n(l.cad)}</td>` : ""}${pwr ? `<td>${n(l.pwr, v => Math.round(v) + " W")}</td>` : ""}</tr>`).join("");
-  return `<section class="card flush lapsc c12"><header class="card-h" style="padding:22px 22px 0;margin-bottom:12px"><div><h3>Tours</h3><p class="sub">${gps ? "Cliquez sur une ligne pour la voir sur la carte" : "Découpage de la séance"}</p></div></header>
+  return `<section class="card flush lapsc c12"><header class="card-h pad"><div><h3>Tours</h3><p class="sub">${gps ? "Cliquez sur une ligne pour la voir sur la carte" : "Découpage de la séance"}</p></div></header>
     <div class="scroll"><table><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div></section>`;
 }
 
@@ -114,7 +114,7 @@ function metricCharts(box, a, T, color) {
     has("alt") && { label: "Altitude", color: css("--elev"), data: T.alt, fill: true, tick: v => Math.round(v), fmt: v => `${Math.round(v)} m`, sub: `+${Math.round(a.elevation_m || gain)} m de dénivelé` },
     has("cad") && { label: "Cadence", color: css("--r1"), data: smooth(T.cad, 3), tick: v => Math.round(v), fmt: v => `${Math.round(v)} spm`, sub: `moyenne ${Math.round(avg("cad"))} spm` },
   ].filter(Boolean);
-  box.innerHTML = defs.map((d, i) => `<div class="mc"><div class="mc-h"><b><i style="--c:${d.color}"></i>${d.label}</b><span>${d.sub}</span></div><div class="chart" style="height:${i === defs.length - 1 ? 148 : 118}px"><canvas></canvas></div></div>`).join("");
+  box.innerHTML = defs.map((d, i) => `<div class="mc"><div class="mc-h"><b><i style="--c:${d.color}"></i>${d.label}</b><span>${d.sub}</span></div><div class="chart" style="--h:${i === defs.length - 1 ? 148 : 118}px"><canvas></canvas></div></div>`).join("");
   const all = [];
   const move = (src, idx) => {
     all.forEach(c => {

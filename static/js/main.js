@@ -56,7 +56,7 @@ async function route() {
   current?.destroy?.();
   current = r?.page;
   document.getElementById("nav").innerHTML = TABS.map(([id, label, icon]) =>
-    `<a href="#/${id}" class="${r?.tab === id ? "on" : ""}">${icon}${label}</a>`).join("");
+    `<a href="#/${id}" class="${r?.tab === id ? "on" : ""}" aria-label="${label}" title="${label}">${icon}${label}</a>`).join("");
   if (!r) { app.innerHTML = '<p class="msg">Page introuvable</p>'; return; }
   app.innerHTML = '<p class="msg">Chargement…</p>';
   scrollTo(0, 0);

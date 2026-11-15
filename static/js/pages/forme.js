@@ -30,7 +30,7 @@ export async function formePage(box) {
     <div class="grid" style="margin-top:14px"><section class="card flush c12"><dl class="kpis" id="kp"></dl></section>
       <section class="card c12"><header class="card-h"><div><h3>VO₂max</h3><p class="sub" id="vsub"></p></div></header><div class="chart"><canvas id="cv"></canvas></div></section>
       <section class="card c12"><header class="card-h"><div><h3>Prédictions de course</h3><p class="sub">Allure prédite au kilomètre pour chaque distance, survolez pour voir les temps</p></div><div class="legend" id="lg"></div></header><div class="chart"><canvas id="cp"></canvas></div></section>
-      <section class="card flush c12"><header class="card-h" style="padding:22px 22px 0;margin-bottom:12px"><div><h3>Historique</h3><p class="sub" id="tsub"></p></div>
+      <section class="card flush c12"><header class="card-h pad"><div><h3>Historique</h3><p class="sub" id="tsub"></p></div>
         <div class="actions"><label class="chk"><input type="checkbox" id="chg" checked> Masquer les jours sans changement</label><button type="button" class="btn sm" id="csv">Exporter en CSV</button></div></header><div class="scroll" id="tb"></div></section></div>`;
   const $ = s => box.querySelector(s);
 
@@ -55,7 +55,7 @@ export async function formePage(box) {
       const a = last(rows, k), b = first(rows, k), d = a != null && b != null ? a - b : null;
       kp.push(`<div class="kpi"><div><dd>${a != null ? hms(a) : "–"}</dd><dt>${l}</dt></div><span class="d ${d == null || Math.abs(d) < 1 ? "" : d < 0 ? "up" : "down"}">${d == null ? "" : Math.abs(d) < 1 ? "stable sur la période" : `${d < 0 ? "−" : "+"}${hms(Math.abs(d))} sur la période`}</span></div>`);
     });
-    kp.push(`<div class="kpi"><div><dd style="font-size:20px">${dateFr(rows.at(-1).date)}</dd><dt>Dernière valeur</dt></div><span class="d">${rows.length} point${rows.length > 1 ? "s" : ""} sur la période</span></div>`);
+    kp.push(`<div class="kpi"><div><dd class="sm">${dateFr(rows.at(-1).date)}</dd><dt>Dernière valeur</dt></div><span class="d">${rows.length} point${rows.length > 1 ? "s" : ""} sur la période</span></div>`);
     $("#kp").innerHTML = kp.join("");
 
     const labels = rows.map(r => r.date), ac = C[0], v2 = rows.map(r => r.vo2).filter(v => v != null), spread = v2.length ? Math.max(...v2) - Math.min(...v2) : 0;

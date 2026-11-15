@@ -26,6 +26,7 @@ export async function syncButton(el) {
     btn.disabled = running; btn.setAttribute("aria-busy", running);
     btn.querySelector("svg").classList.toggle("spin", running);
     label.textContent = running ? "Synchronisation…" : s.state === "error" ? "Réessayer" : "Synchroniser";
+    el.firstElementChild.dataset.state = running ? "running" : s.state === "error" ? "error" : flash ? "flash" : "idle";
     msg.className = "sync-msg" + (s.state === "error" ? " err" : "");
     msg.title = (flash && s.notice ? s.notice + "\n\n" : "") + (s.log || []).join("\n");
     msg.textContent = running ? `${s.step} (${s.i}/${s.n})${s.line ? " · " + s.line : ""}`
