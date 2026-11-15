@@ -135,6 +135,25 @@ def index():
     return send_from_directory("static", "index.html")
 
 
+# ── PWA : le service worker doit être servi à la racine pour contrôler toute l'application ──
+@app.get("/sw.js")
+def service_worker():
+    r = send_from_directory("static", "sw.js", mimetype="application/javascript")
+    r.headers["Cache-Control"] = "no-cache"
+    r.headers["Service-Worker-Allowed"] = "/"
+    return r
+
+
+@app.get("/manifest.webmanifest")
+def manifest():
+    return send_from_directory("static", "manifest.webmanifest", mimetype="application/manifest+json")
+
+
+@app.get("/apple-touch-icon.png")           # iOS la demande à la racine si aucune balise <link> ne la désigne
+def apple_touch_icon():
+    return send_from_directory("static/icons", "apple-touch-icon.png")
+
+
 CATEGORIES = {"course": "Course", "footing": "Footing", "seance": "Séance", "trail": "Trail"}
 WITH_SUB = ("course", "seance", "trail")    # le footing n'a pas de précision ; une course, une séance ou un trail en a une (10 km, 10x400, UTMB…)
 MODES = {"footing": "average", "course": "splits", "seance": "laps", "trail": "splits"}   # comment comparer : moyenne seule / km par km / tour par tour

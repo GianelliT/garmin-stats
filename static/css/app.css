@@ -783,3 +783,10 @@ h1{text-wrap:balance}
   input:not([type=checkbox]),select,textarea{font-size:16px}
   .sportsel select{font-size:16px}
 }
+
+/* ───────── Application installée (écran d'accueil iPhone) ───────── */
+html{-webkit-tap-highlight-color:transparent}
+@media(display-mode:standalone){
+  body{-webkit-touch-callout:none;overscroll-behavior-y:none}
+  .top nav,.btn,.chip,summary{-webkit-user-select:none;user-select:none}
+}
