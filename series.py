@@ -6,6 +6,7 @@ MIN_GAP = 0.12        # écart minimal (en vitesse) entre tours rapides et lents
 DIST_RANGE = (0.35, 2.5)   # une répétition a une longueur comparable aux autres (x médiane) : pyramide 200→800 m tolérée
 EDGE_LONGER = 1.4     # tout premier/dernier tour de la séance : écarté s'il est plus long que ça (x médiane des répétitions)
 EDGE_SLOWER = 0.90    # tour rapide en bout de liste : écarté s'il est plus lent que ça (x vitesse médiane des répétitions)
+REST_STEP = 5         # les temps de récupération sont arrondis à 5 s
 
 
 def _two_means(speeds):
@@ -63,3 +64,26 @@ def effort_summary(laps, fast):
     hrs = [(l["hr"], l.get("time") or 1) for l in sel if l.get("hr")]
     return (round(time / dist * 1000, 1) if dist and time else None,
             round(sum(h * w for h, w in hrs) / sum(w for _, w in hrs)) if hrs else None)
+
+
+def _round_rest(s):
+    return int(s / REST_STEP + 0.5) * REST_STEP      # arrondi « classique » (round() de Python arrondit 2,5 à 2)
+
+
+def _lap_seconds(l):
+    """Durée réelle d'un tour : temps écoulé (pauses comprises), à défaut temps chronométré, à défaut distance / vitesse."""
+    t = l.get("elapsed") or l.get("time")
+    if t:
+        return t
+    return l["dist"] / l["spd"] if (l.get("dist") or 0) > 0 and (l.get("spd") or 0) > 0 else 0
+
+
+def effort_rests(laps, fast):
+    """Récupération entre deux répétitions consécutives : tout ce qui se trouve entre la fin de l'une et le début de la suivante
+    (un ou plusieurs tours, y compris un tour sans distance quand on s'arrête). Renvoie (récups arrondies à 5 s, moyenne arrondie à 5 s) ;
+    ([], None) s'il y a moins de deux répétitions."""
+    f = sorted(fast)
+    raw = [sum(_lap_seconds(l) for l in laps if a < l["n"] < b) for a, b in zip(f, f[1:])]
+    if not raw:
+        return [], None
+    return [_round_rest(x) for x in raw], _round_rest(sum(raw) / len(raw))

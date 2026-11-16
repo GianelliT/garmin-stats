@@ -796,3 +796,48 @@ html{-webkit-tap-highlight-color:transparent}
   body{-webkit-touch-callout:none;overscroll-behavior-y:none}
   .top nav,.btn,.chip,summary{-webkit-user-select:none;user-select:none}
 }
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   Page Comparaison — séances en pastilles, tableau groupé, carte qui épouse la hauteur du tableau,
+   un seul graphique à onglets (ce bloc vient en dernier : il remplace les règles .cmp-* plus haut)
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+/* En-tête : titre + « ajouter » sur une ligne, puis les séances comparées en grille de pastilles de même largeur */
+.cmp-head{margin-bottom:var(--gap)}
+.cmp-head>.cmp-list{flex:1 1 100%}
+.cmp-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:8px;margin:2px 0 0}
+.cmp-list li{display:flex;align-items:center;flex-wrap:nowrap;gap:10px;min-width:0;min-height:0;padding:9px 8px 9px 10px;
+  background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--c);border-radius:var(--r-sm);box-shadow:var(--shadow)}
+.cmp-badge{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:8px;background:color-mix(in srgb,var(--c) 20%,transparent);color:var(--ink);font:650 12.5px var(--font)}
+.cmp-list .cmp-main{flex:1;min-width:0;flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:1px}
+.cmp-list .cmp-main .cmp-name{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal;font-weight:600}
+.cmp-sub{display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px;font-size:12.5px;color:var(--ink-3)}
+.cmp-sub .chip{margin:0}
+
+/* Tableau : un intitulé de groupe (« Tours rapides », « Séance entière ») pour se repérer d'un coup d'œil */
+.tbl tr.grp td{padding:18px 0 6px;border-bottom:1px solid var(--line);text-align:left;color:var(--ink-3);font:600 11px var(--font);letter-spacing:.06em;text-transform:uppercase}
+.tbl tbody tr.grp:first-child td{padding-top:2px}
+
+/* Carte : prend la hauteur du tableau voisin (plus de vide dessous), avec la clé des couleurs A, B, C… */
+.cmp-map{position:relative;isolation:isolate;min-height:clamp(320px,46vh,520px)}
+.cmp-key{position:absolute;left:12px;bottom:12px;z-index:500;display:flex;align-items:center;gap:12px;padding:6px 12px;border-radius:999px;background:var(--surface);
+  box-shadow:0 0 0 1px var(--line),0 4px 14px rgba(15,22,35,.12);font:600 12px var(--font);color:var(--ink-2)}
+.cmp-key span{display:inline-flex;align-items:center;gap:6px}
+.cmp-key i{width:10px;height:10px;border-radius:50%;background:var(--c)}
+
+/* Graphique : onglets + interrupteur des moyennes sur une ligne, légende dessous, graphiques empilés séparés d'un filet */
+.cmp-chart .card-h{align-items:center;margin-bottom:14px}
+.cmp-legend{justify-content:flex-start;gap:6px 18px;margin:0 0 16px}
+.cmp-chart .mc+.mc{margin-top:14px;padding-top:14px}
+.cmp-chart .mc-h b{font-size:13px;color:var(--ink-2)}
+
+@media(max-width:900px){
+  .cmp-map{min-height:0;height:clamp(260px,40vh,380px)}      /* seule dans sa rangée : plus de voisin dont épouser la hauteur */
+}
+@media(max-width:760px){
+  .cmp-head>.cmp-list{grid-column:1/-1}
+  .cmp-head>.actions{order:3}                                 /* sur téléphone : titre, séances, puis « ajouter » */
+  .cmp-list{grid-template-columns:1fr;gap:6px}
+  .cmp-list li{padding:7px 6px 7px 9px}
+  .cmp-key{left:8px;bottom:8px;padding:5px 10px}
+}

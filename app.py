@@ -465,6 +465,13 @@ def activity(aid):
     a["track"] = json.loads(t[0]["points"]) if t else None
     a["splits"] = json.loads(t[0]["splits"]) if t else []
     a["laps"] = json.loads(t[0]["laps"] or "[]") if t else []
+    # tours rapides (répétitions), allure/FC moyennes sur ces tours et récups entre répétitions : pour la comparaison des séances.
+    # Détectés pour les séances et pour les courses pas encore classées ; jamais pour un footing, une course ou un trail déclarés comme tels.
+    cat = a.get("category")
+    detect = cat == "seance" or (not cat and family(a["type"]) == "run")
+    a["fast"] = series.split_efforts(a["laps"]) if detect else []
+    a["fast_pace_s"], a["fast_hr"] = series.effort_summary(a["laps"], a["fast"]) if a["fast"] else (None, None)
+    a["rests"], a["rest_avg_s"] = series.effort_rests(a["laps"], a["fast"])
     a["suggest"] = suggest.suggest_for(a["type"], a["laps"]) if not a.get("category") and family(a["type"]) == "run" else None
     return jsonify(a)
 
